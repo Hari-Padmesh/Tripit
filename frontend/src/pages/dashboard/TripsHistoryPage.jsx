@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTrips } from "../../hooks/useTrips.js";
-import { Calendar, MapPin, Wallet, TrendingUp, ChevronRight, Plane, Plus, Clock, Users } from "lucide-react";
+import { Calendar, MapPin, Wallet, TrendingUp, ChevronRight, Plane, Plus, Clock, Users, Trash2, X, AlertTriangle } from "lucide-react";
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
@@ -10,8 +10,28 @@ const MONTH_NAMES = [
 
 export default function TripsHistoryPage() {
   const navigate = useNavigate();
-  const { trips, fetchMonthlySummary } = useTrips();
+  const { trips, fetchMonthlySummary, deleteTrip } = useTrips();
   const [summary, setSummary] = useState([]);
+  const [deletingId, setDeletingId] = useState(null);
+  const [tripToDelete, setTripToDelete] = useState(null);
+
+  const handleDeleteClick = (trip, e) => {
+    e.stopPropagation();
+    setTripToDelete(trip);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!tripToDelete) return;
+    try {
+      setDeletingId(tripToDelete._id);
+      await deleteTrip(tripToDelete._id);
+      setTripToDelete(null);
+    } catch (err) {
+      console.error("Failed to delete trip:", err);
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   useEffect(() => {
     fetchMonthlySummary()
@@ -198,31 +218,34 @@ export default function TripsHistoryPage() {
                   {/* Trip Cards */}
                   <div className="space-y-3">
                     {group.trips.map((trip) => (
-                      <button
+                      <div
                         key={trip._id}
-                        onClick={() => navigate(`/dashboard/trip/${trip._id}`)}
                         className="w-full text-left bg-white rounded-2xl p-5 border border-gray-200 shadow-sm hover:border-blue-500/50 hover:shadow-md transition-all group"
                       >
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-semibold text-gray-900 truncate mb-1">{trip.title}</h4>
-                            <div className="flex items-center gap-4 text-sm text-gray-500">
-                              <span className="flex items-center gap-1.5">
-                                <MapPin className="w-3.5 h-3.5" />
-                                {trip.destination}
-                              </span>
-                              <span className="flex items-center gap-1.5">
-                                <Calendar className="w-3.5 h-3.5" />
-                                {trip.startDate ? new Date(trip.startDate).toLocaleDateString() : "No date"}
-                              </span>
-                              <span className="flex items-center gap-1.5">
-                                <Users className="w-3.5 h-3.5" />
-                                {trip.travelers || 1} traveler{(trip.travelers || 1) !== 1 ? 's' : ''}
-                              </span>
+                        <div 
+                          onClick={() => navigate(`/dashboard/trip/${trip._id}`)}
+                          className="cursor-pointer"
+                        >
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-semibold text-gray-900 truncate mb-1">{trip.title}</h4>
+                              <div className="flex items-center gap-4 text-sm text-gray-500">
+                                <span className="flex items-center gap-1.5">
+                                  <MapPin className="w-3.5 h-3.5" />
+                                  {trip.destination}
+                                </span>
+                                <span className="flex items-center gap-1.5">
+                                  <Calendar className="w-3.5 h-3.5" />
+                                  {trip.startDate ? new Date(trip.startDate).toLocaleDateString() : "No date"}
+                                </span>
+                                <span className="flex items-center gap-1.5">
+                                  <Users className="w-3.5 h-3.5" />
+                                  {trip.travelers || 1} traveler{(trip.travelers || 1) !== 1 ? 's' : ''}
+                                </span>
+                              </div>
                             </div>
+                            <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-blue-500 transition-colors" />
                           </div>
-                          <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-blue-500 transition-colors" />
-                        </div>
                         
                         {/* Budget Progress */}
                         {trip.walletBudget > 0 && (
@@ -249,7 +272,19 @@ export default function TripsHistoryPage() {
                             </div>
                           </div>
                         )}
-                      </button>
+                        </div>
+                        
+                        {/* Delete Button - appears on hover at bottom */}
+                        <div className="flex justify-end mt-3 pt-3 border-t border-gray-100 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={(e) => handleDeleteClick(trip, e)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            Delete Trip
+                          </button>
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -315,6 +350,74 @@ export default function TripsHistoryPage() {
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {tripToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setTripToDelete(null)}
+          />
+          <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6 animate-in fade-in zoom-in duration-200">
+            <button
+              onClick={() => setTripToDelete(null)}
+              className="absolute top-4 right-4 p-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                <AlertTriangle className="w-6 h-6 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Delete Trip</h3>
+                <p className="text-sm text-gray-500">This action cannot be undone</p>
+              </div>
+            </div>
+            
+            <div className="bg-gray-50 rounded-xl p-4 mb-6">
+              <h4 className="font-medium text-gray-900 mb-1">{tripToDelete.title}</h4>
+              <div className="flex items-center gap-3 text-sm text-gray-500">
+                <span className="flex items-center gap-1">
+                  <MapPin className="w-3.5 h-3.5" />
+                  {tripToDelete.destination}
+                </span>
+                <span className="flex items-center gap-1">
+                  <Calendar className="w-3.5 h-3.5" />
+                  {tripToDelete.startDate ? new Date(tripToDelete.startDate).toLocaleDateString() : "No date"}
+                </span>
+              </div>
+            </div>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={() => setTripToDelete(null)}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                disabled={deletingId === tripToDelete._id}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-red-600 text-white font-medium hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {deletingId === tripToDelete._id ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    Delete Trip
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

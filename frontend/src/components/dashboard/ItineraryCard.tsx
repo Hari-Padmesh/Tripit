@@ -1,4 +1,4 @@
-import { Calendar, DollarSign, Sparkles, ChevronRight, Clock } from "lucide-react";
+import { Calendar, DollarSign, Sparkles, ChevronRight, Sunrise, Sun, Sunset, Moon, MapPin } from "lucide-react";
 import React from "react";
 
 interface Activity {
@@ -35,13 +35,14 @@ const getCategoryColor = (category: string) => {
   }
 };
 
-const getTimeIcon = (time: string) => {
+const TimeIcon = ({ time }: { time: string }) => {
+  const iconClass = "w-3.5 h-3.5";
   switch (time) {
-    case "morning": return "🌅";
-    case "afternoon": return "☀️";
-    case "evening": return "🌆";
-    case "night": return "🌙";
-    default: return "⏰";
+    case "morning": return <Sunrise className={`${iconClass} text-amber-500`} />;
+    case "afternoon": return <Sun className={`${iconClass} text-yellow-500`} />;
+    case "evening": return <Sunset className={`${iconClass} text-orange-500`} />;
+    case "night": return <Moon className={`${iconClass} text-indigo-500`} />;
+    default: return <MapPin className={`${iconClass} text-gray-500`} />;
   }
 };
 
@@ -98,14 +99,18 @@ export function ItineraryCard({ days, estimatedTotal, currency, loading, onGener
           {previewDays.map((day, dayIdx) => (
             <div key={dayIdx} className="bg-gray-100 rounded-xl p-4">
               <div className="flex items-center gap-2 mb-3">
-                <Clock className="w-4 h-4 text-indigo-600" />
+                <div className="w-5 h-5 rounded-full bg-indigo-600 flex items-center justify-center text-[10px] font-bold text-white">
+                  {dayIdx + 1}
+                </div>
                 <span className="font-semibold text-sm text-gray-900">{day.label}</span>
                 <span className="text-xs text-gray-500">{day.date}</span>
               </div>
               <div className="space-y-2">
                 {day.activities.slice(0, 3).map((activity, actIdx) => (
                   <div key={actIdx} className="flex items-start gap-2 text-sm">
-                    <span className="text-base">{getTimeIcon(activity.timeOfDay)}</span>
+                    <div className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <TimeIcon time={activity.timeOfDay} />
+                    </div>
                     <div className="flex-1 min-w-0">
                       <span className="font-medium text-gray-900">{activity.title}</span>
                       <span className="ml-2 text-gray-500 text-xs">

@@ -120,7 +120,7 @@ export default function DashboardLayout() {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-h-screen">
         {/* Top Header Bar */}
-        <header className="h-16 bg-white/80 backdrop-blur-sm border-b border-gray-200 px-6 flex items-center justify-between sticky top-0 z-10">
+        <header className="h-16 bg-white/80 backdrop-blur-sm border-b border-gray-200 px-6 flex items-center justify-between sticky top-0 z-40">
           <div className="flex items-center gap-4">
             <div className="relative">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />

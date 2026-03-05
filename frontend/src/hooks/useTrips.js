@@ -36,6 +36,12 @@ export function useTrips() {
     return res.data;
   }, [fetchTrips]);
 
+  const deleteTrip = useCallback(async (tripId) => {
+    const res = await apiClient.delete(`/travel/trips/${tripId}`);
+    await fetchTrips();
+    return res.data;
+  }, [fetchTrips]);
+
   useEffect(() => {
     fetchTrips();
   }, [fetchTrips]);
@@ -48,6 +54,7 @@ export function useTrips() {
     fetchMonthlySummary,
     createWalletTrip,
     generateItinerary,
+    deleteTrip,
   };
 }
 

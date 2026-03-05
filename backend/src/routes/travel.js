@@ -566,5 +566,32 @@ router.get("/trips/summary-by-month", requireAuth, async (req, res) => {
   }
 });
 
+/* --------------------------------------------------
+   DELETE TRIP
+-------------------------------------------------- */
+router.delete("/trips/:tripId", requireAuth, async (req, res) => {
+  try {
+    const { tripId } = req.params;
+    
+    if (!mongoose.Types.ObjectId.isValid(tripId)) {
+      return res.status(400).json({ error: "Invalid trip ID" });
+    }
+
+    const trip = await Trip.findOneAndDelete({
+      _id: tripId,
+      userId: req.user.id,
+    });
+
+    if (!trip) {
+      return res.status(404).json({ error: "Trip not found" });
+    }
+
+    res.json({ message: "Trip deleted successfully", tripId });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to delete trip" });
+  }
+});
+
 export default router;
 
