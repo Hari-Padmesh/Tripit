@@ -20,10 +20,10 @@ interface WeatherCardProps {
 
 function getWeatherIcon(condition?: string) {
   const lower = condition?.toLowerCase() || "";
-  if (lower.includes("rain")) return <CloudRain className="w-14 h-14 text-blue-400" />;
-  if (lower.includes("snow")) return <Snowflake className="w-14 h-14 text-cyan-300" />;
-  if (lower.includes("cloud")) return <Cloud className="w-14 h-14 text-slate-400" />;
-  return <Sun className="w-14 h-14 text-amber-400" />;
+  if (lower.includes("rain")) return <CloudRain className="w-10 h-10 text-blue-400" />;
+  if (lower.includes("snow")) return <Snowflake className="w-10 h-10 text-cyan-300" />;
+  if (lower.includes("cloud")) return <Cloud className="w-10 h-10 text-slate-400" />;
+  return <Sun className="w-10 h-10 text-amber-400" />;
 }
 
 export function WeatherCard({ weather, loading, error }: WeatherCardProps) {
@@ -31,7 +31,7 @@ export function WeatherCard({ weather, loading, error }: WeatherCardProps) {
   const description = weather?.weather?.[0]?.description;
 
   return (
-    <div className="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm hover:shadow-md transition-all">
+    <div className="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm hover:shadow-md transition-all overflow-hidden">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center">
@@ -40,7 +40,7 @@ export function WeatherCard({ weather, loading, error }: WeatherCardProps) {
           <span className="text-sm font-medium text-gray-500">Weather</span>
         </div>
         {weather?.name && (
-          <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-lg">{weather.name}</span>
+          <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-lg truncate max-w-[100px]">{weather.name}</span>
         )}
       </div>
 
@@ -54,31 +54,31 @@ export function WeatherCard({ weather, loading, error }: WeatherCardProps) {
       {error && <p className="text-sm text-red-600">{error}</p>}
       
       {!loading && !error && weather && (
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0 flex-1">
             <div className="flex items-baseline gap-1">
               <span className="text-4xl font-bold text-gray-900">{Math.round(weather.main.temp)}</span>
               <span className="text-xl text-gray-500">°C</span>
             </div>
-            <p className="text-sm capitalize text-gray-500 mt-1">{description}</p>
-            <div className="flex gap-4 mt-4">
+            <p className="text-sm capitalize text-gray-500 mt-1 truncate">{description}</p>
+            <div className="flex flex-wrap gap-3 mt-4">
               <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                <Thermometer className="w-3.5 h-3.5" />
+                <Thermometer className="w-3.5 h-3.5 flex-shrink-0" />
                 <span>Feels {Math.round(weather.main.feels_like)}°</span>
               </div>
               <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                <Droplets className="w-3.5 h-3.5" />
+                <Droplets className="w-3.5 h-3.5 flex-shrink-0" />
                 <span>{weather.main.humidity}%</span>
               </div>
               {weather.wind && (
                 <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                  <Wind className="w-3.5 h-3.5" />
+                  <Wind className="w-3.5 h-3.5 flex-shrink-0" />
                   <span>{weather.wind.speed} m/s</span>
                 </div>
               )}
             </div>
           </div>
-          <div className="bg-gray-100 rounded-2xl p-3">
+          <div className="bg-amber-50 rounded-2xl p-2 flex-shrink-0">
             {getWeatherIcon(condition)}
           </div>
         </div>

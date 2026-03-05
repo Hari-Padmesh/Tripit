@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { useWeather } from "../../hooks/useWeather.js";
@@ -13,7 +13,19 @@ import { TodoCard } from "../../components/dashboard/TodoCard";
 import { ItineraryCard } from "../../components/dashboard/ItineraryCard";
 import { ExpenseCard } from "../../components/dashboard/ExpenseCard";
 import { LocalTimeCard } from "../../components/dashboard/LocalTimeCard";
-import { Plane, MapPin, Calendar, Wallet, Plus, ArrowRight } from "lucide-react";
+import { 
+  Plane, MapPin, Calendar, Wallet, Plus, ArrowRight, 
+  Sparkles, TrendingUp, Globe, Clock, ChevronRight, Compass
+} from "lucide-react";
+
+// Travel quotes for inspiration
+const travelQuotes = [
+  { text: "The world is a book and those who do not travel read only one page.", author: "Saint Augustine" },
+  { text: "Travel is the only thing you buy that makes you richer.", author: "Anonymous" },
+  { text: "Life is either a daring adventure or nothing at all.", author: "Helen Keller" },
+  { text: "Not all those who wander are lost.", author: "J.R.R. Tolkien" },
+  { text: "Adventure is worthwhile in itself.", author: "Amelia Earhart" },
+];
 
 export default function OverviewPage() {
   const navigate = useNavigate();
@@ -26,6 +38,7 @@ export default function OverviewPage() {
   const [locationLoading, setLocationLoading] = useState(true);
   const [location, setLocation] = useState(null);
   const [itineraryLoading, setItineraryLoading] = useState(false);
+  const [hoveredStat, setHoveredStat] = useState(null);
   const [todos, setTodos] = useState([
     { id: "1", title: "Check local weather forecast", completed: false, category: "planning" },
     { id: "2", title: "Exchange currency for trip", completed: false, category: "finance" },
@@ -36,6 +49,83 @@ export default function OverviewPage() {
 
   const latestTrip = trips[trips.length - 1];
   const userName = user?.name?.split(" ")[0] || "Traveler";
+
+  // Get time-based greeting
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return { text: "Good morning", emoji: "🌅" };
+    if (hour < 17) return { text: "Good afternoon", emoji: "☀️" };
+    if (hour < 21) return { text: "Good evening", emoji: "🌆" };
+    return { text: "Good night", emoji: "🌙" };
+  };
+  const greeting = getGreeting();
+
+  // Random travel quote
+  const quote = useMemo(() => travelQuotes[Math.floor(Math.random() * travelQuotes.length)], []);
+
+  // Calculate days until next trip
+  const nextTrip = useMemo(() => {
+    const upcoming = trips
+      .filter(t => new Date(t.startDate) > new Date())
+      .sort((a, b) => new Date(a.startDate) - new Date(b.startDate))[0];
+    if (upcoming) {
+      const days = Math.ceil((new Date(upcoming.startDate) - new Date()) / (1000 * 60 * 60 * 24));
+      return { ...upcoming, daysUntil: days };
+    }
+    return null;
+  }, [trips]);
+
+  // Calculate travel stats
+  const stats = useMemo(() => ({
+    totalTrips: trips.length,
+    totalBudget: trips.reduce((sum, t) => sum + (t.walletBudget || 0), 0),
+    destinations: new Set(trips.map(t => t.destination)).size,
+    upcoming: trips.filter(t => new Date(t.endDate) > new Date()).length,
+    totalDays: trips.reduce((sum, t) => {
+      const start = new Date(t.startDate);
+      const end = new Date(t.endDate);
+      return sum + Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+    }, 0)
+  }), [trips]);
+
+  // Calculate category-wise spending from itinerary
+  const expenseCategories = useMemo(() => {
+    const categoryMap = {
+      food: { name: "Food", amount: 0, color: "bg-orange-400", keywords: ["food", "restaurant", "dining", "eat", "meal", "breakfast", "lunch", "dinner", "cafe", "cuisine"] },
+      transport: { name: "Transport", amount: 0, color: "bg-blue-400", keywords: ["transport", "taxi", "uber", "bus", "train", "flight", "car", "metro", "transfer", "travel"] },
+      accommodation: { name: "Accommodation", amount: 0, color: "bg-purple-400", keywords: ["hotel", "accommodation", "stay", "hostel", "resort", "lodge", "airbnb", "check-in"] },
+      activities: { name: "Activities", amount: 0, color: "bg-emerald-400", keywords: ["tour", "visit", "museum", "park", "temple", "beach", "hiking", "adventure", "explore", "sightseeing", "attraction"] },
+      shopping: { name: "Shopping", amount: 0, color: "bg-pink-400", keywords: ["shopping", "market", "souvenir", "store", "mall", "buy"] },
+    };
+
+    if (latestTrip?.itinerary) {
+      latestTrip.itinerary.forEach(day => {
+        (day.activities || []).forEach(activity => {
+          const cost = activity.cost || 0;
+          const cat = (activity.category || "").toLowerCase();
+          const title = (activity.title || activity.name || "").toLowerCase();
+          const desc = (activity.description || "").toLowerCase();
+          const text = `${cat} ${title} ${desc}`;
+          
+          // Match category by activity.category field first, then by keywords
+          let matched = false;
+          for (const [key, data] of Object.entries(categoryMap)) {
+            if (cat.includes(key) || data.keywords.some(kw => text.includes(kw))) {
+              categoryMap[key].amount += cost;
+              matched = true;
+              break;
+            }
+          }
+          // If no match, add to activities
+          if (!matched && cost > 0) {
+            categoryMap.activities.amount += cost;
+          }
+        });
+      });
+    }
+
+    return Object.values(categoryMap);
+  }, [latestTrip]);
 
   // Fetch location and weather on mount
   useEffect(() => {
@@ -115,77 +205,140 @@ export default function OverviewPage() {
 
   return (
     <div className="space-y-6">
-      {/* Welcome Header */}
-      <header className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-1">
-            Welcome back, {userName}! 
-          </h1>
-          <p className="text-gray-500 text-sm">
-            Here's what's happening with your travel plans
-          </p>
+      {/* Welcome Header with Gradient */}
+      <header className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 p-6 text-white shadow-lg">
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIj48Y2lyY2xlIGN4PSIzMCIgY3k9IjMwIiByPSIyIi8+PC9nPjwvZz48L3N2Zz4=')] opacity-30 pointer-events-none" />
+        <div className="relative flex items-center justify-between z-10">
+          <div className="flex-1">
+            <div className="flex items-center gap-3 mb-2">
+              <span className="text-3xl animate-bounce">{greeting.emoji}</span>
+              <h1 className="text-2xl md:text-3xl font-bold">
+                {greeting.text}, {userName}!
+              </h1>
+            </div>
+            <p className="text-blue-100 text-sm md:text-base max-w-xl">
+              "{quote.text}" — <span className="italic">{quote.author}</span>
+            </p>
+          </div>
+          <button
+            onClick={() => navigate("/dashboard/trip/new")}
+            className="hidden md:flex items-center gap-2 px-5 py-3 rounded-xl bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white font-medium text-sm transition-all hover:scale-105 border border-white/20 z-10 relative"
+          >
+            <Plus className="w-5 h-5" />
+            Plan New Adventure
+          </button>
         </div>
-        <button
-          onClick={() => navigate("/dashboard/trip/new")}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          New Trip
-        </button>
+        
+        {/* Floating decorative elements */}
+        <div className="absolute -right-4 -top-4 w-24 h-24 rounded-full bg-white/10 blur-2xl pointer-events-none" />
+        <div className="absolute right-20 -bottom-8 w-32 h-32 rounded-full bg-purple-400/20 blur-2xl pointer-events-none" />
       </header>
 
-      {/* Quick Stats */}
+      {/* Next Trip Countdown (if upcoming) */}
+      {nextTrip && (
+        <div 
+          onClick={() => navigate(`/dashboard/trip/${nextTrip._id}`)}
+          className="group relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 p-5 text-white shadow-lg cursor-pointer hover:shadow-xl transition-all hover:scale-[1.01]"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                <Compass className="w-7 h-7 animate-pulse" />
+              </div>
+              <div>
+                <p className="text-emerald-100 text-sm font-medium">Next Adventure</p>
+                <h3 className="text-xl font-bold">{nextTrip.destination}</h3>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="flex items-baseline gap-1">
+                <span className="text-4xl font-bold">{nextTrip.daysUntil}</span>
+                <span className="text-emerald-100 text-sm">days</span>
+              </div>
+              <p className="text-emerald-100 text-xs">until departure</p>
+            </div>
+            <ChevronRight className="w-6 h-6 text-white/50 group-hover:text-white group-hover:translate-x-1 transition-all" />
+          </div>
+          <div className="absolute -right-8 -bottom-8 w-32 h-32 rounded-full bg-white/10 blur-2xl" />
+        </div>
+      )}
+
+      {/* Quick Stats - Interactive Cards */}
       <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-2xl p-4 border border-gray-200 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
-              <Plane className="w-5 h-5 text-blue-600" />
+        {[
+          { 
+            key: 'trips', 
+            icon: Plane, 
+            value: stats.totalTrips, 
+            label: 'Total Trips', 
+            color: 'blue',
+            gradient: 'from-blue-500 to-blue-600'
+          },
+          { 
+            key: 'budget', 
+            icon: Wallet, 
+            value: `$${stats.totalBudget.toLocaleString()}`, 
+            label: 'Total Budget', 
+            color: 'emerald',
+            gradient: 'from-emerald-500 to-emerald-600'
+          },
+          { 
+            key: 'destinations', 
+            icon: Globe, 
+            value: stats.destinations, 
+            label: 'Destinations', 
+            color: 'purple',
+            gradient: 'from-purple-500 to-purple-600'
+          },
+          { 
+            key: 'upcoming', 
+            icon: Calendar, 
+            value: stats.upcoming, 
+            label: 'Upcoming', 
+            color: 'amber',
+            gradient: 'from-amber-500 to-orange-500'
+          },
+        ].map((stat) => (
+          <div
+            key={stat.key}
+            onMouseEnter={() => setHoveredStat(stat.key)}
+            onMouseLeave={() => setHoveredStat(null)}
+            className={`relative overflow-hidden rounded-2xl p-4 border shadow-sm cursor-pointer transition-all duration-300 ${
+              hoveredStat === stat.key 
+                ? `bg-gradient-to-br ${stat.gradient} text-white scale-105 shadow-lg` 
+                : 'bg-white border-gray-200 hover:border-gray-300'
+            }`}
+          >
+            <div className="flex items-center gap-3 relative z-10">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
+                hoveredStat === stat.key 
+                  ? 'bg-white/20' 
+                  : `bg-${stat.color}-100`
+              }`}>
+                <stat.icon className={`w-5 h-5 transition-colors ${
+                  hoveredStat === stat.key 
+                    ? 'text-white' 
+                    : `text-${stat.color}-600`
+                }`} />
+              </div>
+              <div>
+                <p className={`text-2xl font-bold transition-colors ${
+                  hoveredStat === stat.key ? 'text-white' : 'text-gray-900'
+                }`}>
+                  {stat.value}
+                </p>
+                <p className={`text-xs transition-colors ${
+                  hoveredStat === stat.key ? 'text-white/80' : 'text-gray-500'
+                }`}>
+                  {stat.label}
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">{trips.length}</p>
-              <p className="text-xs text-gray-500">Total Trips</p>
-            </div>
+            {hoveredStat === stat.key && (
+              <div className="absolute -right-4 -bottom-4 w-20 h-20 rounded-full bg-white/10 blur-xl" />
+            )}
           </div>
-        </div>
-        <div className="bg-white rounded-2xl p-4 border border-gray-200 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
-              <Wallet className="w-5 h-5 text-emerald-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">
-                ${trips.reduce((sum, t) => sum + (t.walletBudget || 0), 0).toLocaleString()}
-              </p>
-              <p className="text-xs text-gray-500">Total Budget</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white rounded-2xl p-4 border border-gray-200 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">
-              <MapPin className="w-5 h-5 text-purple-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">
-                {new Set(trips.map(t => t.destination)).size}
-              </p>
-              <p className="text-xs text-gray-500">Destinations</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white rounded-2xl p-4 border border-gray-200 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
-              <Calendar className="w-5 h-5 text-amber-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">
-                {trips.filter(t => new Date(t.endDate) > new Date()).length}
-              </p>
-              <p className="text-xs text-gray-500">Upcoming</p>
-            </div>
-          </div>
-        </div>
+        ))}
       </section>
 
       {/* Main Content Grid - 2 Column Layout */}
@@ -261,47 +414,77 @@ export default function OverviewPage() {
             totalBudget={latestTrip?.walletBudget || 0}
             totalSpent={latestTrip?.walletSpent || 0}
             currency={latestTrip?.walletCurrency || "USD"}
+            categories={expenseCategories}
             loading={false}
           />
 
-          {/* Quick Actions */}
-          <div className="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm">
-            <h3 className="text-sm font-medium text-gray-500 mb-4">Quick Actions</h3>
+          {/* Quick Actions - Enhanced */}
+          <div className="bg-gradient-to-br from-gray-50 to-white rounded-2xl p-5 border border-gray-200 shadow-sm">
+            <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-amber-500" />
+              Quick Actions
+            </h3>
             <div className="space-y-2">
               <button
                 onClick={() => navigate("/dashboard/trip/new")}
-                className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-900 text-sm transition-colors"
+                className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white text-sm transition-all hover:scale-[1.02] hover:shadow-md group"
               >
-                <span className="flex items-center gap-2">
-                  <Plus className="w-4 h-4 text-blue-600" />
-                  Plan New Trip
+                <span className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
+                    <Plus className="w-4 h-4" />
+                  </div>
+                  <span className="font-medium">Plan New Trip</span>
                 </span>
-                <ArrowRight className="w-4 h-4 text-gray-400" />
+                <ArrowRight className="w-4 h-4 opacity-70 group-hover:translate-x-1 transition-transform" />
               </button>
               <button
                 onClick={() => navigate("/dashboard/trips/history")}
-                className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-900 text-sm transition-colors"
+                className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-white hover:bg-gray-50 text-gray-700 text-sm transition-all hover:scale-[1.02] border border-gray-200 hover:border-gray-300 hover:shadow-sm group"
               >
-                <span className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-purple-600" />
-                  View Trip History
+                <span className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
+                    <Calendar className="w-4 h-4 text-purple-600" />
+                  </div>
+                  <span className="font-medium">View Trip History</span>
                 </span>
-                <ArrowRight className="w-4 h-4 text-gray-400" />
+                <ArrowRight className="w-4 h-4 text-gray-400 group-hover:translate-x-1 transition-transform" />
               </button>
               <button
                 onClick={() => navigate("/dashboard/tools/translate")}
-                className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-900 text-sm transition-colors"
+                className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-white hover:bg-gray-50 text-gray-700 text-sm transition-all hover:scale-[1.02] border border-gray-200 hover:border-gray-300 hover:shadow-sm group"
               >
-                <span className="flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-emerald-600" />
-                  Translate Text
+                <span className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+                    <Globe className="w-4 h-4 text-emerald-600" />
+                  </div>
+                  <span className="font-medium">Translate Text</span>
                 </span>
-                <ArrowRight className="w-4 h-4 text-gray-400" />
+                <ArrowRight className="w-4 h-4 text-gray-400 group-hover:translate-x-1 transition-transform" />
+              </button>
+              <button
+                onClick={() => navigate("/dashboard/social")}
+                className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-white hover:bg-gray-50 text-gray-700 text-sm transition-all hover:scale-[1.02] border border-gray-200 hover:border-gray-300 hover:shadow-sm group"
+              >
+                <span className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-pink-100 flex items-center justify-center">
+                    <TrendingUp className="w-4 h-4 text-pink-600" />
+                  </div>
+                  <span className="font-medium">Connect with Travelers</span>
+                </span>
+                <ArrowRight className="w-4 h-4 text-gray-400 group-hover:translate-x-1 transition-transform" />
               </button>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Mobile New Trip Button */}
+      <button
+        onClick={() => navigate("/dashboard/trip/new")}
+        className="md:hidden fixed bottom-6 right-6 w-14 h-14 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg hover:shadow-xl transition-all hover:scale-110 flex items-center justify-center z-50"
+      >
+        <Plus className="w-6 h-6" />
+      </button>
     </div>
   );
 }

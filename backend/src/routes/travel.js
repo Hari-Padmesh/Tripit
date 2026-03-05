@@ -456,7 +456,7 @@ router.post("/itinerary", requireAuth, async (req, res) => {
     const dayDate = new Date(start);
     dayDate.setDate(start.getDate() + i);
     const isoDate = dayDate.toISOString().slice(0, 10);
-    const dayPrompt = `For a trip to ${destination} on ${isoDate} for ${numTravelers} traveler${numTravelers > 1 ? 's' : ''} with a daily budget of ${dailyBudget} ${walletCurrency} total (${dailyBudgetPerPerson} ${walletCurrency} per person), list 3-5 activities. The costs should be TOTAL for all ${numTravelers} people, not per person. For each activity, provide: name, description, category, cost (total for group), and timeOfDay. Respond in valid JSON: { "activities": [ { "name": "...", "description": "...", "category": "...", "cost": number, "timeOfDay": "..." } ] }`;
+    const dayPrompt = `For a trip to ${destination} on ${isoDate} for ${numTravelers} traveler${numTravelers > 1 ? 's' : ''} with a daily budget of ${dailyBudget} ${walletCurrency} total (${dailyBudgetPerPerson} ${walletCurrency} per person), list 3-5 activities. The costs should be TOTAL for all ${numTravelers} people, not per person. For each activity, provide: name, description, category (MUST be one of: "food", "transport", "accommodation", "activities", "shopping"), cost (total for group), and timeOfDay. Respond in valid JSON: { "activities": [ { "name": "...", "description": "...", "category": "food|transport|accommodation|activities|shopping", "cost": number, "timeOfDay": "..." } ] }`;
     let activities = [];
     let success = false;
     let lastError = null;
