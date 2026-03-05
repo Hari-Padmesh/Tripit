@@ -1,3 +1,4 @@
+              <h1 className="text-lg font-bold text-white">Beyondly</h1>
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { useTheme } from "../../context/ThemeContext.jsx";
@@ -14,7 +15,9 @@ import {
   User,
   Bell,
   Search,
-  ChevronDown
+  ChevronDown,
+  Compass,
+  Users
 } from "lucide-react";
 
 export default function DashboardLayout() {
@@ -31,24 +34,23 @@ export default function DashboardLayout() {
     { to: "/dashboard/overview", label: "Overview", icon: LayoutDashboard },
     { to: "/dashboard/trip/new", label: "New Trip", icon: PlusCircle },
     { to: "/dashboard/trips/history", label: "Trip History", icon: History },
+    { to: "/dashboard/social", label: "Social", icon: Users },
     { to: "/dashboard/tools/translate", label: "Translate", icon: Languages },
     { to: "/dashboard/settings", label: "Settings", icon: Settings },
   ];
 
   return (
     <div className="min-h-screen w-full flex bg-[#0f172a]">
-      {/* Sidebar */}
-      <aside className="w-[280px] flex flex-col bg-[#1e293b] border-r border-slate-700/50">
+      {/* Sidebar - fixed height, does not scroll */}
+      <aside className="w-[280px] flex flex-col bg-[#1e293b] border-r border-slate-700/50 flex-shrink-0 h-screen sticky top-0">
         {/* Logo */}
         <div className="p-6 border-b border-slate-700/50">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center">
-              <Plane className="w-5 h-5 text-white" />
+            <div className="flex items-center gap-2 text-white">
+              <Compass className="w-8 h-8" />
+              <span className="text-xl font-semibold">Beyondly</span>
             </div>
-            <div>
-              <h1 className="text-lg font-bold text-white">Tripit</h1>
-              <p className="text-xs text-slate-400">Travel Dashboard</p>
-            </div>
+            <p className="text-xs text-slate-400">Travel Dashboard</p>
           </div>
         </div>
 

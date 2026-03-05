@@ -42,7 +42,7 @@ async function callWeatherAPI(lat, lon) {
   // Using Open-Meteo API (free, no key required)
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&timezone=auto`;
   const { data } = await axios.get(url);
-  
+
   // Also get location name via reverse geocoding
   let locationName = "Unknown";
   try {
@@ -69,7 +69,7 @@ async function callWeatherAPI(lat, lon) {
 
   const current = data.current;
   const weatherCode = current.weather_code;
-  
+
   // Transform to OpenWeatherMap-like format for compatibility
   return {
     name: locationName,
@@ -102,44 +102,147 @@ async function callFxAPI(base, target) {
   };
 }
 
-async function callGemini(prompt, systemInstruction) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  
-  if (!apiKey) {
-    throw new Error("GEMINI_API_KEY is not configured");
+
+function parseGeminiJson(text) {
+  if (!text || typeof text !== "string") {
+    throw new Error("Empty Gemini response");
   }
-  
-  const models = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"];
-  
-  let lastError = null;
-  for (const model of models) {
-    try {
-      console.log(`Trying Gemini model: ${model}`);
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
-      const { data } = await axios.post(
-        `${url}?key=${apiKey}`,
-        {
-          contents: [{ parts: [{ text: prompt }] }],
-          systemInstruction: systemInstruction
-            ? { role: "system", parts: [{ text: systemInstruction }] }
-            : undefined,
-        },
-        { headers: { "Content-Type": "application/json" } },
-      );
-      return data;
-    } catch (err) {
-      lastError = err;
-      // If rate limited, try next model
-      if (err.response?.status === 429) {
-        console.log(`Model ${model} rate limited, trying next...`);
-        continue;
+
+  const cleanText = text.replace(/```json|```/g, "").trim();
+  console.log("Gemini raw response:", cleanText);
+  const firstBrace = cleanText.indexOf("{");
+  let lastBrace = cleanText.lastIndexOf("}");
+  if (firstBrace === -1) {
+    console.error("Gemini response missing opening brace:", text);
+    throw new Error("Incomplete Gemini JSON response");
+  }
+  if (lastBrace === -1 || lastBrace <= firstBrace) {
+    // Try to recover partial JSON by finding the last valid closing bracket for activities array
+    const activitiesStart = cleanText.indexOf('"activities": [');
+    if (activitiesStart !== -1) {
+      // Find last closing bracket for array
+      const arrStart = cleanText.indexOf('[', activitiesStart);
+      const arrEnd = cleanText.lastIndexOf(']');
+      if (arrStart !== -1 && arrEnd > arrStart) {
+        // Build a partial JSON string
+        const partial = cleanText.slice(firstBrace, arrEnd + 1) + '}';
+        try {
+          return JSON.parse(partial);
+        } catch (err) {
+          console.error("Gemini partial JSON recovery failed:", partial);
+        }
       }
-      throw err; // For other errors, rethrow immediately
+      // Regex fallback: extract valid activity objects from broken array
+      const activityRegex = /\{[^\{\}]*"name"\s*:\s*"[^"]+"[^\{\}]*\}/g;
+      const matches = cleanText.match(activityRegex);
+      if (matches && matches.length > 0) {
+        try {
+          const activities = matches.map(objStr => JSON.parse(objStr));
+          return { activities };
+        } catch (err3) {
+          console.error("Regex activity extraction failed:", matches);
+        }
+      }
     }
+    console.error("Gemini response missing closing brace:", text);
+    throw new Error("Incomplete Gemini JSON response");
   }
-  throw lastError; // All models failed
+  const jsonText = cleanText.slice(firstBrace, lastBrace + 1);
+  try {
+    return JSON.parse(jsonText);
+  } catch (err) {
+    // Try to recover partial JSON as above
+    const activitiesStart = cleanText.indexOf('"activities": [');
+    if (activitiesStart !== -1) {
+      const arrStart = cleanText.indexOf('[', activitiesStart);
+      const arrEnd = cleanText.lastIndexOf(']');
+      if (arrStart !== -1 && arrEnd > arrStart) {
+        const partial = cleanText.slice(firstBrace, arrEnd + 1) + '}';
+        try {
+          return JSON.parse(partial);
+        } catch (err2) {
+          console.error("Gemini partial JSON recovery failed:", partial);
+        }
+      }
+      // Regex fallback: extract valid activity objects from broken array
+      const activityRegex = /\{[^\{\}]*"name"\s*:\s*"[^"]+"[^\{\}]*\}/g;
+      const matches = cleanText.match(activityRegex);
+      if (matches && matches.length > 0) {
+        try {
+          const activities = matches.map(objStr => JSON.parse(objStr));
+          return { activities };
+        } catch (err3) {
+          console.error("Regex activity extraction failed:", matches);
+        }
+      }
+    }
+    console.error("Gemini raw response:", text);
+    throw err;
+  }
 }
 
+function getErrorStatus(err) {
+  return err?.status || err?.response?.status || err?.code;
+}
+
+async function callGemini(prompt) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY not set");
+  }
+
+  const models = [
+    "gemini-2.5-flash",
+    "gemini-2.5-pro",
+    "gemini-2.0-flash",
+  ];
+
+  let lastError;
+
+  for (const model of models) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const { data } = await axios.post(
+        url,
+        {
+            systemInstruction: { parts: [{ text: "Respond ONLY with valid, complete JSON. No markdown fences. Do not truncate or cut off your response. If the output is too long, summarize or reduce details." }] },
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.4,
+              maxOutputTokens: 1024,
+            responseMimeType: "application/json",
+          },
+        },
+        { headers: { "Content-Type": "application/json" } }
+      );
+
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+      return parseGeminiJson(text);
+    } catch (err) {
+      lastError = err;
+      const status = err.response?.status;
+      const errorMsg = err.response?.data?.error?.message || "";
+
+      if (status === 429 || errorMsg?.includes("RESOURCE_EXHAUSTED") || errorMsg?.includes("quota")) {
+        console.warn(`Gemini model ${model} quota exhausted, trying next...`);
+        continue;
+      }
+
+      if ([500, 503].includes(status)) {
+        console.warn(`Gemini model ${model} server error (${status}), retrying...`);
+        continue;
+      }
+
+      throw err;
+    }
+  }
+
+  throw lastError;
+}
+
+/* --------------------------------------------------
+   WEATHER + FOOD
+-------------------------------------------------- */
 router.post("/weather-food", requireAuth, async (req, res) => {
   const { value, error } = weatherFoodSchema.validate(req.body);
   if (error) {
@@ -149,41 +252,43 @@ router.post("/weather-food", requireAuth, async (req, res) => {
   try {
     const weather = await callWeatherAPI(value.lat, value.lon);
 
-    // Try to get food suggestions, but don't fail if Gemini is unavailable
     let foods = [];
     try {
       const prompt = `
-You are a local food expert. Given the following weather and locality, suggest 5–8 local dishes or drinks that are ideal for this weather.
-Return a valid JSON array named "foods" with objects: { "name": string, "description": string, "whyItFitsWeather": string }.
+You are a local food expert.
 
 Location: ${value.locality}
-Weather: ${weather.weather?.[0]?.description}, temperature ${weather.main?.temp}°C, feels like ${weather.main?.feels_like}°C.
-`;
+Weather: ${weather.weather?.[0]?.description}, 
+Temperature: ${weather.main?.temp}°C, feels like ${weather.main?.feels_like}°C.
 
-      const geminiResponse = await callGemini(
-        prompt,
-        "Respond ONLY with JSON, no extra text.",
-      );
-      const text = geminiResponse?.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
-      try {
-        const parsed = JSON.parse(text);
-        foods = parsed.foods || parsed || [];
-      } catch {
-        foods = [];
-      }
-    } catch (geminiErr) {
-      // Gemini failed - continue with empty foods
-      console.log("Gemini unavailable, skipping food suggestions");
+Return JSON:
+{
+  "foods": [
+    {
+      "name": "string",
+      "description": "string",
+      "whyItFitsWeather": "string"
+    }
+  ]
+}
+      `;
+
+      const result = await callGemini(prompt);
+      foods = result.foods || [];
+    } catch (aiErr) {
+      console.warn("Gemini unavailable, skipping food suggestions");
     }
 
     res.json({ weather, foods });
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.error(err);
     res.status(500).json({ error: "Failed to fetch weather and food suggestions" });
   }
 });
 
+/* --------------------------------------------------
+   FX RATES
+-------------------------------------------------- */
 router.get("/fx-rates", requireAuth, async (req, res) => {
   const { value, error } = fxSchema.validate(req.query);
   if (error) {
@@ -195,12 +300,14 @@ router.get("/fx-rates", requireAuth, async (req, res) => {
     const rate = data.rates?.[value.target];
     res.json({ base: value.base, target: value.target, rate, raw: data });
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.error(err);
     res.status(500).json({ error: "Failed to fetch FX rates" });
   }
 });
 
+/* --------------------------------------------------
+   CREATE WALLET / TRIP
+-------------------------------------------------- */
 router.post("/wallets", requireAuth, async (req, res) => {
   const { value, error } = walletSchema.validate(req.body);
   if (error) {
@@ -208,6 +315,20 @@ router.post("/wallets", requireAuth, async (req, res) => {
   }
 
   try {
+    // If baseCurrency is provided, convert walletBudget
+    const baseCurrency = req.body.baseCurrency || value.walletCurrency;
+    let walletFxRate = 1;
+    let walletBudgetConverted = value.walletBudget;
+    if (baseCurrency !== value.walletCurrency) {
+      try {
+        const fxData = await callFxAPI(baseCurrency, value.walletCurrency);
+        walletFxRate = fxData.rates?.[value.walletCurrency] || 1;
+        walletBudgetConverted = value.walletBudget * walletFxRate;
+      } catch (fxErr) {
+        console.warn("FX rate unavailable, using 1:1");
+      }
+    }
+
     const trip = await Trip.create({
       userId: req.user.id,
       title: value.title,
@@ -216,17 +337,22 @@ router.post("/wallets", requireAuth, async (req, res) => {
       endDate: value.endDate,
       walletCurrency: value.walletCurrency,
       walletBudget: value.walletBudget,
+      walletBudgetConverted,
+      walletFxRate,
       walletSpent: 0,
+      itinerary: [],
     });
 
     res.status(201).json(trip);
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.error(err);
     res.status(500).json({ error: "Failed to create wallet" });
   }
 });
 
+/* --------------------------------------------------
+   WALLET SUMMARY
+-------------------------------------------------- */
 router.get("/wallets/:tripId", requireAuth, async (req, res) => {
   try {
     const trip = await Trip.findOne({
@@ -243,7 +369,7 @@ router.get("/wallets/:tripId", requireAuth, async (req, res) => {
         (sum, day) =>
           sum +
           (day.activities || []).reduce((s, a) => s + (a.cost || 0), 0),
-        0,
+        0
       ) || 0;
 
     res.json({
@@ -254,149 +380,138 @@ router.get("/wallets/:tripId", requireAuth, async (req, res) => {
       walletRemaining: Math.max(trip.walletBudget - walletSpent, 0),
     });
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.error(err);
     res.status(500).json({ error: "Failed to load wallet" });
   }
 });
 
+/* --------------------------------------------------
+   GENERATE ITINERARY (FIXED)
+-------------------------------------------------- */
 router.post("/itinerary", requireAuth, async (req, res) => {
   const { value, error } = itinerarySchema.validate(req.body);
   if (error) {
     return res.status(400).json({ error: error.message });
   }
 
-  const { destination, startDate, endDate, walletCurrency, walletBudget, pace, interests } =
-    value;
+  const {
+    destination,
+    startDate,
+    endDate,
+    walletCurrency,
+    walletBudget,
+    pace,
+    interests,
+    tripId,
+  } = value;
 
-  const prompt = `
-Plan a detailed multi-day travel itinerary for ${destination}.
-Travel dates: from ${startDate} to ${endDate}.
-Total budget: ${walletBudget} ${walletCurrency}.
-Traveler pace: ${pace}.
-Interests: ${interests.join(", ") || "general sightseeing, local culture, and food"}.
+  // Calculate trip days
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const daysCount = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1);
+  const dailyBudget = Math.floor(walletBudget / daysCount);
 
-Constraints:
-- Keep the total estimated spend within the budget.
-- Include a mix of local food, sightseeing, and 1–2 distinctive experiences.
-
-Return JSON object with:
-{
-  "days": [
-    {
-      "date": "YYYY-MM-DD",
-      "label": "Day 1",
-      "activities": [
-        {
-          "title": "string",
-          "description": "string",
-          "category": "food|culture|adventure|relax|other",
-          "cost": number,
-          "currency": "${walletCurrency}",
-          "timeOfDay": "morning|afternoon|evening|night"
-        }
-      ]
-    }
-  ],
-  "summary": {
-    "estimatedTotal": number,
-    "currency": "${walletCurrency}"
-  }
-}
-`;
-
+  // Get summary first
+  const summaryPrompt = `For a trip to ${destination} from ${startDate} to ${endDate} with a budget of ${walletBudget} ${walletCurrency}, give a 2-3 sentence summary in valid JSON: { "aiSummary": "..." }`;
+  let aiSummary = "";
   try {
-    let geminiResponse;
-    try {
-      geminiResponse = await callGemini(
-        prompt,
-        "Respond ONLY with JSON, no extra commentary.",
-      );
-    } catch (geminiErr) {
-      const statusCode = geminiErr.response?.status;
-      const errorData = geminiErr.response?.data?.error;
-      console.error("Gemini API error details:", {
-        status: statusCode,
-        error: errorData,
-        message: geminiErr.message
-      });
-      
-      if (geminiErr.message === "GEMINI_API_KEY is not configured") {
-        return res.status(500).json({ error: "AI service not configured. Please set GEMINI_API_KEY." });
-      }
-      if (statusCode === 429) {
-        return res.status(429).json({ 
-          error: "AI service rate limit exceeded. Please wait a minute and try again.",
-          retryAfter: 60
-        });
-      }
-      if (statusCode === 400) {
-        return res.status(400).json({ error: "Invalid request to AI service: " + (errorData?.message || geminiErr.message) });
-      }
-      return res.status(503).json({ error: "AI service temporarily unavailable. Please try again later." });
-    }
-
-    const text = geminiResponse?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-    let parsed;
-    try {
-      parsed = JSON.parse(text);
-    } catch {
-      parsed = { days: [], summary: { estimatedTotal: 0, currency: walletCurrency } };
-    }
-
-    const days = parsed.days || [];
-    const estimatedTotal = parsed.summary?.estimatedTotal || 0;
-
-    let trip;
-    if (value.tripId) {
-      trip = await Trip.findOne({
-        _id: value.tripId,
-        userId: req.user.id,
-      });
-    }
-
-    if (!trip) {
-      trip = await Trip.create({
-        userId: req.user.id,
-        title: `${destination} trip`,
-        destination,
-        startDate,
-        endDate,
-        walletCurrency,
-        walletBudget,
-        walletSpent: estimatedTotal,
-        itinerary: days,
-      });
-    } else {
-      trip.destination = destination;
-      trip.startDate = startDate;
-      trip.endDate = endDate;
-      trip.walletCurrency = walletCurrency;
-      trip.walletBudget = walletBudget;
-      trip.walletSpent = estimatedTotal;
-      trip.itinerary = days;
-      await trip.save();
-    }
-
-    res.json({ tripId: trip.id, itinerary: trip.itinerary, estimatedTotal });
+    const summaryResult = await callGemini(summaryPrompt);
+    aiSummary = summaryResult.aiSummary || "";
   } catch (err) {
-    // eslint-disable-next-line no-console
-    console.error(err);
-    res.status(500).json({ error: "Failed to generate itinerary" });
+    aiSummary = "No AI summary available yet.";
   }
+
+  // Generate itinerary day-by-day
+  let itinerary = [];
+  let walletSpent = 0;
+  for (let i = 0; i < daysCount; i++) {
+    const dayDate = new Date(start);
+    dayDate.setDate(start.getDate() + i);
+    const isoDate = dayDate.toISOString().slice(0, 10);
+    const dayPrompt = `For a trip to ${destination} on ${isoDate} with a daily budget of ${dailyBudget} ${walletCurrency}, list 3-5 activities. For each activity, provide: name, description, category, cost, and timeOfDay. Respond in valid JSON: { "activities": [ { "name": "...", "description": "...", "category": "...", "cost": number, "timeOfDay": "..." } ] }`;
+    let activities = [];
+    let success = false;
+    let lastError = null;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const dayResult = await callGemini(dayPrompt);
+        activities = Array.isArray(dayResult.activities)
+          ? dayResult.activities.map(a => ({
+              title: a.name || a.title || "",
+              description: a.description || "",
+              category: a.category || "",
+              cost: a.cost || 0,
+              timeOfDay: a.timeOfDay || ""
+            }))
+          : [];
+        walletSpent += activities.reduce((sum, a) => sum + (a.cost || 0), 0);
+        success = true;
+        break;
+      } catch (err) {
+        lastError = err;
+        console.warn(`Gemini failed for day ${i + 1} (${isoDate}), attempt ${attempt}:`, err.message || err);
+      }
+    }
+    if (!success) {
+      console.warn(`No activities for day ${i + 1} (${isoDate}) after 2 attempts. Last error:`, lastError?.message || lastError);
+      activities = [];
+    }
+    itinerary.push({ date: isoDate, label: `Day ${i + 1}`, activities });
+  }
+
+  // Save or update trip with generated itinerary and summary
+  let trip = null;
+  if (tripId) {
+    trip = await Trip.findOne({ _id: tripId, userId: req.user.id });
+  }
+  if (!trip) {
+    trip = await Trip.create({
+      userId: req.user.id,
+      title: `${destination} trip`,
+      destination,
+      startDate,
+      endDate,
+      walletCurrency,
+      walletBudget,
+      walletSpent,
+      aiSummary,
+      itinerary,
+    });
+  } else {
+    trip.destination = destination;
+    trip.startDate = startDate;
+    trip.endDate = endDate;
+    trip.walletCurrency = walletCurrency;
+    trip.walletBudget = walletBudget;
+    trip.walletSpent = walletSpent;
+    trip.aiSummary = aiSummary;
+    trip.itinerary = itinerary;
+    await trip.save();
+  }
+  res.json({
+    tripId: trip.id,
+    itinerary: trip.itinerary,
+    estimatedTotal: walletSpent,
+    aiSummary: trip.aiSummary,
+  });
 });
 
+/* --------------------------------------------------
+   LIST TRIPS
+-------------------------------------------------- */
 router.get("/trips", requireAuth, async (req, res) => {
   try {
     const trips = await Trip.find({ userId: req.user.id }).sort({ startDate: 1 });
     res.json(trips);
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.error(err);
     res.status(500).json({ error: "Failed to list trips" });
   }
 });
 
+/* --------------------------------------------------
+   MONTHLY SUMMARY
+-------------------------------------------------- */
 router.get("/trips/summary-by-month", requireAuth, async (req, res) => {
   try {
     const summary = await Trip.aggregate([
@@ -416,7 +531,6 @@ router.get("/trips/summary-by-month", requireAuth, async (req, res) => {
 
     res.json(summary);
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.error(err);
     res.status(500).json({ error: "Failed to summarize trips" });
   }

@@ -15,10 +15,6 @@ export function AuthProvider({ children }) {
         const parsed = JSON.parse(stored);
         setUser(parsed.user || null);
         setAccessToken(parsed.accessToken || null);
-        // Ensure axios interceptor has the token
-        if (parsed.accessToken) {
-          window.sessionStorage.setItem("beyondly-access-token", parsed.accessToken);
-        }
         setLoading(false);
         return;
       } catch {

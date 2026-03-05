@@ -58,8 +58,20 @@ const tripSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    walletBudgetConverted: {
+      type: Number,
+      default: 0,
+    },
+    walletFxRate: {
+      type: Number,
+      default: 1,
+    },
     weatherSnapshot: {
       type: mongoose.Schema.Types.Mixed,
+    },
+    aiSummary: {
+      type: String,
+      default: "",
     },
     itinerary: [itineraryDaySchema],
   },

@@ -68,7 +68,7 @@ async function createSessionAndTokens(userId, email) {
   await Session.findOneAndUpdate(
     { userId, refreshToken },
     { userId, refreshToken, expiresAt },
-    { upsert: true, new: true },
+    { upsert: true, returnDocument: 'after' },
   );
 
   return { accessToken, refreshToken, expiresAt };

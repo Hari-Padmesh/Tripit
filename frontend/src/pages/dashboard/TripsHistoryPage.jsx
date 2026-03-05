@@ -23,7 +23,7 @@ export default function TripsHistoryPage() {
   const tripsByMonth = useMemo(() => {
     const grouped = {};
     trips.forEach((trip) => {
-      const date = new Date(trip.createdAt || trip.startDate || Date.now());
+      const date = new Date(trip.startDate || Date.now());
       const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
       if (!grouped[key]) {
         grouped[key] = {
@@ -39,7 +39,7 @@ export default function TripsHistoryPage() {
       grouped[key].totalBudget += trip.walletBudget || 0;
       grouped[key].totalSpent += trip.walletSpent || 0;
     });
-    // Sort by date descending
+    // Sort by most recent month first (descending)
     return Object.values(grouped).sort((a, b) => {
       if (a.year !== b.year) return b.year - a.year;
       return b.month - a.month;

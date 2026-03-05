@@ -27,6 +27,8 @@ const currencies = [
 ];
 
 export default function NewTripPage() {
+    // Loader state
+    const [showLoader, setShowLoader] = useState(false);
   const { createWalletTrip, generateItinerary } = useTrips();
   const { rate, fetchRate } = useFxRates();
   const navigate = useNavigate();
@@ -73,7 +75,7 @@ export default function NewTripPage() {
   const onSubmit = async (e) => {
     e.preventDefault();
     setError("");
-
+    setShowLoader(true);
     try {
       setSaving(true);
       const walletTrip = await createWalletTrip({
@@ -107,8 +109,24 @@ export default function NewTripPage() {
       setError(errorMsg);
     } finally {
       setSaving(false);
+      setShowLoader(false);
     }
   };
+
+  if (showLoader) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "80vh" }}>
+        <div style={{ marginBottom: 24 }}>
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-spin">
+            <circle cx="12" cy="12" r="10" strokeOpacity="0.2" />
+            <path d="M12 2a10 10 0 0 1 10 10" />
+          </svg>
+        </div>
+        <div style={{ fontSize: 20, fontWeight: 600, color: "#6366f1" }}>Planning your trip...</div>
+        <div style={{ marginTop: 8, fontSize: 14, color: "#94a3b8" }}>Please wait while Beyondly creates your itinerary.</div>
+      </div>
+    );
+  }
 
   return (
     <form
@@ -264,6 +282,11 @@ export default function NewTripPage() {
               value={form.walletBudget}
               onChange={onChange}
             />
+            {rate && rate.rate && (
+              <div style={{ marginTop: 6, fontSize: 13, color: "var(--text-soft)" }}>
+                {form.walletBudget} {rate.base} ≈ {(form.walletBudget * rate.rate).toLocaleString(undefined, { maximumFractionDigits: 2 })} {rate.target}
+              </div>
+            )}
           </div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
