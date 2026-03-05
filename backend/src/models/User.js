@@ -71,7 +71,7 @@ userSchema.index({ googleId: 1 });
 // Note: beyondlyId already has unique: true, which creates an index
 
 // Pre-save hook to generate Beyondly ID if not present
-userSchema.pre("save", async function (next) {
+userSchema.pre("save", async function () {
   if (!this.beyondlyId) {
     let id = generateBeyondlyId();
     let exists = await mongoose.model("User").findOne({ beyondlyId: id });
@@ -81,7 +81,6 @@ userSchema.pre("save", async function (next) {
     }
     this.beyondlyId = id;
   }
-  next();
 });
 
 export const User = mongoose.model("User", userSchema);

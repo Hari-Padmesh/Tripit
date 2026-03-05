@@ -26,10 +26,9 @@ const SocialPage = () => {
               updateLocation?.({
                 city: data.address.city || data.address.town || data.address.village || 'Unknown',
                 country: data.address.country || 'Unknown',
-                coordinates: {
-                  lat: position.coords.latitude,
-                  lng: position.coords.longitude
-                }
+                lat: position.coords.latitude,
+                lng: position.coords.longitude,
+                source: 'browser'
               });
             }
           } catch (err) {
@@ -76,19 +75,19 @@ const SocialPage = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-3 text-white">
-            <svg className="w-7 h-7 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <h1 className="text-2xl font-bold flex items-center gap-3 text-gray-900">
+            <svg className="w-7 h-7 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
             </svg>
             Social
           </h1>
-          <p className="text-slate-400 mt-1">Connect with fellow travelers around the world</p>
+          <p className="text-gray-500 mt-1">Connect with fellow travelers around the world</p>
         </div>
         
         {/* Connection status */}
         <div className="flex items-center gap-2 text-sm">
           <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
-          <span className="text-slate-400">
+          <span className="text-gray-500">
             {isConnected ? 'Connected' : 'Disconnected'}
           </span>
         </div>
@@ -99,15 +98,15 @@ const SocialPage = () => {
         <BeyondlyIdCard />
         
         {/* Location visibility toggle */}
-        <div className="bg-slate-800/80 rounded-xl border border-slate-700 p-6 backdrop-blur-sm">
-          <h3 className="font-semibold mb-3 flex items-center gap-2 text-white">
-            <svg className="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+          <h3 className="font-semibold mb-3 flex items-center gap-2 text-gray-900">
+            <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
             Location Sharing
           </h3>
-          <p className="text-sm text-slate-400 mb-4">
+          <p className="text-sm text-gray-500 mb-4">
             Allow friends to see your general location (city level) on the map
           </p>
           <label className="flex items-center gap-3 cursor-pointer">
@@ -118,10 +117,10 @@ const SocialPage = () => {
                 onChange={toggleLocationVisibility}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-slate-700 rounded-full peer peer-checked:bg-indigo-600 transition-colors" />
-              <div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5" />
+              <div className="w-11 h-6 bg-gray-300 rounded-full peer peer-checked:bg-indigo-600 transition-colors" />
+              <div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5 shadow-sm" />
             </div>
-            <span className="font-medium text-slate-200">
+            <span className="font-medium text-gray-700">
               {profile?.locationVisible ? 'Visible to friends' : 'Hidden'}
             </span>
           </label>

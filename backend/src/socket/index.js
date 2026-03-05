@@ -2,6 +2,7 @@ import { User } from "../models/User.js";
 import { Friendship } from "../models/Friendship.js";
 import { Message } from "../models/Message.js";
 import { UserLocation } from "../models/UserLocation.js";
+import { geocodeCity } from "../utils/geocoding.js";
 
 // Store connected users: userId -> socketId
 const connectedUsers = new Map();
@@ -125,11 +126,23 @@ export function setupSocketHandlers(io, verifyAccessToken) {
     // Update location
     socket.on("location:update", async (data) => {
       try {
-        const { city, country, lat, lng, source } = data;
+        let { city, country, lat, lng, source } = data;
 
         // Check if user wants to be visible
         const user = await User.findById(userId);
         if (!user.locationVisible) return;
+
+        // If no coordinates provided but have city, try to geocode
+        if ((!lat || !lng || (lat === 0 && lng === 0)) && city) {
+          console.log(`Socket geocoding city: ${city}, ${country}`);
+          const geocoded = await geocodeCity(city, country);
+          if (geocoded) {
+            lat = geocoded.lat;
+            lng = geocoded.lng;
+            source = source || "geocoded";
+            console.log(`Socket geocoded to: ${lat}, ${lng}`);
+          }
+        }
 
         // Update location in database
         const location = await UserLocation.findOneAndUpdate(
@@ -143,7 +156,7 @@ export function setupSocketHandlers(io, verifyAccessToken) {
               updatedAt: new Date(),
             },
           },
-          { upsert: true, new: true }
+          { upsert: true, returnDocument: 'after' }
         );
 
         // Broadcast to friends
@@ -267,13 +280,27 @@ async function getFriendsLocations(userId) {
 
       const location = await UserLocation.findOne({ userId: friend._id });
       if (location) {
+        let coordinates = location.coordinates;
+        
+        // If no valid coordinates but have city, try to geocode
+        if ((!coordinates || (coordinates.lat === 0 && coordinates.lng === 0)) && location.city) {
+          const geocoded = await geocodeCity(location.city, location.country);
+          if (geocoded) {
+            coordinates = geocoded;
+            // Update the location in database with geocoded coordinates
+            await UserLocation.findByIdAndUpdate(location._id, {
+              $set: { coordinates, source: "geocoded" }
+            });
+          }
+        }
+        
         locations.push({
           userId: friend._id,
           user: { name: friend.name, beyondlyId: friend.beyondlyId, avatar: friend.avatar, isOnline: friend.isOnline },
           location: {
             city: location.city,
             country: location.country,
-            coordinates: location.coordinates,
+            coordinates: coordinates,
           },
         });
       }

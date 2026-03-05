@@ -59,24 +59,24 @@ export function ExchangeRatesCard({
   };
 
   return (
-    <div className="bg-[#1e293b] rounded-2xl p-5 border border-slate-700/50 hover:border-slate-600/50 transition-colors">
+    <div className="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm hover:shadow-md transition-all">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <div className="w-9 h-9 rounded-xl bg-purple-500/10 flex items-center justify-center">
-            <TrendingUp className="w-4 h-4 text-purple-400" />
+          <div className="w-9 h-9 rounded-xl bg-purple-100 flex items-center justify-center">
+            <TrendingUp className="w-4 h-4 text-purple-600" />
           </div>
-          <span className="text-sm font-medium text-slate-400">Exchange Rates</span>
+          <span className="text-sm font-medium text-gray-500">Exchange Rates</span>
         </div>
         <button
           onClick={handleRefresh}
           disabled={loading}
-          className="p-2 rounded-lg hover:bg-slate-800/50 transition-colors disabled:opacity-50"
+          className="p-2 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50"
         >
-          <RefreshCw className={`w-4 h-4 text-slate-500 ${loading ? "animate-spin" : ""}`} />
+          <RefreshCw className={`w-4 h-4 text-gray-400 ${loading ? "animate-spin" : ""}`} />
         </button>
       </div>
 
-      {error && <p className="text-sm text-red-400 mb-3">{error}</p>}
+      {error && <p className="text-sm text-red-500 mb-3">{error}</p>}
       
       {/* Currency selectors */}
       <div className="flex items-center gap-2 mb-4">
@@ -86,19 +86,19 @@ export function ExchangeRatesCard({
             setBase(e.target.value);
             if (onFetchRate) onFetchRate(e.target.value, target);
           }}
-          className="flex-1 min-w-0 bg-slate-800/50 border border-slate-700/50 rounded-xl px-2 py-2.5 text-xs text-white focus:outline-none focus:border-purple-500/50 cursor-pointer truncate"
+          className="flex-1 min-w-0 bg-gray-100 border border-gray-300 rounded-xl px-2 py-2.5 text-xs text-gray-900 focus:outline-none focus:border-purple-500 cursor-pointer truncate"
         >
           {currencies.map((c) => (
-            <option key={c.code} value={c.code} className="bg-slate-800 text-white">
+            <option key={c.code} value={c.code} className="bg-white text-gray-900">
               {c.code}
             </option>
           ))}
         </select>
         <button
           onClick={handleSwap}
-          className="p-2 rounded-xl bg-slate-800/50 hover:bg-slate-700/50 transition-colors flex-shrink-0"
+          className="p-2 rounded-xl bg-gray-100 hover:bg-gray-200 transition-colors flex-shrink-0"
         >
-          <ArrowRightLeft className="w-4 h-4 text-slate-400" />
+          <ArrowRightLeft className="w-4 h-4 text-gray-600" />
         </button>
         <select
           value={target}
@@ -106,10 +106,10 @@ export function ExchangeRatesCard({
             setTarget(e.target.value);
             if (onFetchRate) onFetchRate(base, e.target.value);
           }}
-          className="flex-1 min-w-0 bg-slate-800/50 border border-slate-700/50 rounded-xl px-2 py-2.5 text-xs text-white focus:outline-none focus:border-purple-500/50 cursor-pointer truncate"
+          className="flex-1 min-w-0 bg-gray-100 border border-gray-300 rounded-xl px-2 py-2.5 text-xs text-gray-900 focus:outline-none focus:border-purple-500 cursor-pointer truncate"
         >
           {currencies.map((c) => (
-            <option key={c.code} value={c.code} className="bg-slate-800 text-white">
+            <option key={c.code} value={c.code} className="bg-white text-gray-900">
               {c.code}
             </option>
           ))}
@@ -118,30 +118,34 @@ export function ExchangeRatesCard({
 
       {/* Rate display */}
       {rate && (
-        <div className="text-center mb-4 py-3 bg-slate-800/30 rounded-xl">
-          <p className="text-xs text-slate-500 mb-1">1 {base} =</p>
-          <p className="text-2xl font-bold text-white">{rate.toFixed(4)} <span className="text-purple-400">{target}</span></p>
+        <div className="text-center mb-4 py-3 bg-gray-100 rounded-xl">
+          <p className="text-xs text-gray-500 mb-1">1 {base} =</p>
+          <p className="text-2xl font-bold text-gray-900">{rate.toFixed(4)} <span className="text-purple-600">{target}</span></p>
         </div>
       )}
 
       {/* Converter */}
-      <div className="bg-slate-800/30 rounded-xl p-4">
+      <div className="bg-gray-100 rounded-xl p-4 overflow-hidden">
         <div className="flex items-center gap-2 mb-3">
-          <Calculator className="w-4 h-4 text-slate-500" />
-          <span className="text-xs text-slate-500">Quick Convert</span>
+          <Calculator className="w-4 h-4 text-gray-500" />
+          <span className="text-xs text-gray-500">Quick Convert</span>
         </div>
-        <div className="flex items-center gap-3">
-          <input
-            type="number"
-            value={amount}
-            onChange={(e) => setAmount(Number(e.target.value))}
-            className="flex-1 bg-slate-700/50 border border-slate-600/50 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500/50"
-            placeholder="Amount"
-          />
-          <span className="text-sm text-slate-400">{base}</span>
-          <span className="text-slate-500">=</span>
-          <span className="text-lg font-semibold text-purple-400">{convertedAmount}</span>
-          <span className="text-sm text-slate-400">{target}</span>
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              value={amount}
+              onChange={(e) => setAmount(Number(e.target.value))}
+              className="w-20 bg-white border border-gray-300 rounded-lg px-2 py-1.5 text-sm text-gray-900 focus:outline-none focus:border-purple-500"
+              placeholder="Amount"
+            />
+            <span className="text-xs text-gray-500">{base}</span>
+          </div>
+          <span className="text-gray-400">=</span>
+          <div className="flex items-center gap-1 min-w-0">
+            <span className="text-sm font-semibold text-purple-600 break-all">{convertedAmount}</span>
+            <span className="text-xs text-gray-500 flex-shrink-0">{target}</span>
+          </div>
         </div>
       </div>
     </div>

@@ -3,28 +3,16 @@ import { createContext, useContext, useEffect, useState } from "react";
 const ThemeContext = createContext(null);
 
 export function ThemeProvider({ children }) {
-  const [theme, setTheme] = useState(
-    window.matchMedia &&
-      window.matchMedia("(prefers-color-scheme: dark)").matches
-      ? "dark"
-      : "light",
-  );
+  const [theme] = useState("light");
 
   useEffect(() => {
     const root = document.documentElement;
-    root.setAttribute("data-theme", theme);
-    localStorage.setItem("beyondly-theme", theme);
-  }, [theme]);
-
-  useEffect(() => {
-    const stored = localStorage.getItem("beyondly-theme");
-    if (stored === "light" || stored === "dark") {
-      setTheme(stored);
-    }
+    root.setAttribute("data-theme", "light");
+    localStorage.setItem("beyondly-theme", "light");
   }, []);
 
   const toggleTheme = () => {
-    setTheme((prev) => (prev === "light" ? "dark" : "light"));
+    // Theme toggle disabled - app is light theme only
   };
 
   return (

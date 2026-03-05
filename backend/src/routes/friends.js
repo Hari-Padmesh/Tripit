@@ -5,6 +5,8 @@ import { User } from "../models/User.js";
 import { FriendRequest } from "../models/FriendRequest.js";
 import { Friendship } from "../models/Friendship.js";
 import { UserLocation } from "../models/UserLocation.js";
+import { connectedUsers } from "../socket/index.js";
+import { geocodeCity } from "../utils/geocoding.js";
 
 const router = express.Router();
 
@@ -67,6 +69,21 @@ router.post("/add", requireAuth, async (req, res) => {
       to: targetUser._id,
       status: "pending",
     });
+
+    // Get sender info for real-time notification
+    const sender = await User.findById(req.user.id).select("name email beyondlyId avatar");
+
+    // Emit socket event to target user if online
+    const io = req.app.get("io");
+    const targetSocketId = connectedUsers.get(targetUser._id.toString());
+    if (io && targetSocketId) {
+      io.to(targetSocketId).emit("friend:request", {
+        _id: friendRequest._id,
+        from: sender,
+        status: "pending",
+        createdAt: friendRequest.createdAt,
+      });
+    }
 
     res.status(201).json({ 
       message: "Friend request sent!",
@@ -163,7 +180,7 @@ router.patch("/reject/:requestId", requireAuth, async (req, res) => {
     const request = await FriendRequest.findOneAndUpdate(
       { _id: requestId, to: req.user.id, status: "pending" },
       { status: "rejected" },
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     if (!request) {
@@ -195,6 +212,19 @@ router.get("/", requireAuth, async (req, res) => {
         let location = null;
         if (friend.locationVisible) {
           location = await UserLocation.findOne({ userId: friend._id });
+          
+          // If location has city but no valid coordinates, try geocoding
+          if (location && location.city && 
+              (!location.coordinates || (location.coordinates.lat === 0 && location.coordinates.lng === 0))) {
+            const geocoded = await geocodeCity(location.city, location.country);
+            if (geocoded) {
+              // Update the database with geocoded coordinates
+              await UserLocation.findByIdAndUpdate(location._id, {
+                $set: { coordinates: geocoded, source: 'geocoded' }
+              });
+              location.coordinates = geocoded;
+            }
+          }
         }
 
         return {

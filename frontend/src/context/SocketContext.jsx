@@ -26,22 +26,31 @@ export const SocketProvider = ({ children }) => {
       return;
     }
 
-    const newSocket = io(import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000', {
-      auth: { token: accessToken }
+    console.log('Initializing socket connection...');
+    const socketUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
+    console.log('Socket URL:', socketUrl);
+
+    const newSocket = io(socketUrl, {
+      auth: { token: accessToken },
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000
     });
 
     newSocket.on('connect', () => {
       setIsConnected(true);
-      console.log('Socket connected');
+      console.log('Socket connected with ID:', newSocket.id);
     });
 
-    newSocket.on('disconnect', () => {
+    newSocket.on('disconnect', (reason) => {
       setIsConnected(false);
-      console.log('Socket disconnected');
+      console.log('Socket disconnected:', reason);
     });
 
     newSocket.on('connect_error', (error) => {
       console.error('Socket connection error:', error.message);
+      setIsConnected(false);
     });
 
     // Friend status updates
@@ -49,9 +58,11 @@ export const SocketProvider = ({ children }) => {
       setOnlineFriends(prev => ({ ...prev, [friendId]: { isOnline, lastSeen } }));
     });
 
-    // Friend request notifications
-    newSocket.on('friend:request_received', (data) => {
+    // Friend request notifications (real-time)
+    newSocket.on('friend:request', (data) => {
       setNotifications(prev => [...prev, { type: 'friend_request', ...data, id: Date.now() }]);
+      // Trigger a custom event so useFriends can refetch
+      window.dispatchEvent(new CustomEvent('friend:request:received', { detail: data }));
     });
 
     newSocket.on('friend:request_accepted', (data) => {
@@ -75,9 +86,31 @@ export const SocketProvider = ({ children }) => {
       // Message was read by friend
     });
 
-    // Location updates
-    newSocket.on('location:friend_update', (location) => {
-      setFriendLocations(prev => ({ ...prev, [location.userId]: location }));
+    // Location updates (individual)
+    newSocket.on('location:friend_update', (data) => {
+      setFriendLocations(prev => ({ 
+        ...prev, 
+        [data.userId]: {
+          city: data.location?.city || data.city,
+          country: data.location?.country || data.country,
+          coordinates: data.location?.coordinates || data.coordinates,
+          lastUpdated: data.updatedAt || new Date().toISOString()
+        }
+      }));
+    });
+
+    // Bulk location data when requested
+    newSocket.on('location:friends', (locations) => {
+      const locationsMap = {};
+      locations.forEach(loc => {
+        locationsMap[loc.userId] = {
+          city: loc.location?.city || '',
+          country: loc.location?.country || '',
+          coordinates: loc.location?.coordinates || { lat: 0, lng: 0 },
+          lastUpdated: loc.location?.updatedAt || new Date().toISOString()
+        };
+      });
+      setFriendLocations(locationsMap);
     });
 
     setSocket(newSocket);
@@ -90,13 +123,13 @@ export const SocketProvider = ({ children }) => {
   // Socket methods
   const sendMessage = useCallback((friendId, content) => {
     if (socket) {
-      socket.emit('chat:send', { to: friendId, content });
+      socket.emit('chat:send', { friendId, content });
     }
   }, [socket]);
 
   const markAsTyping = useCallback((friendId, isTyping) => {
     if (socket) {
-      socket.emit('chat:typing', { to: friendId, isTyping });
+      socket.emit('chat:typing', { friendId, isTyping });
     }
   }, [socket]);
 

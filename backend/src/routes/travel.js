@@ -25,6 +25,7 @@ const walletSchema = Joi.object({
   endDate: Joi.date().optional(),
   walletCurrency: Joi.string().length(3).required(),
   walletBudget: Joi.number().positive().required(),
+  travelers: Joi.number().integer().min(1).default(1),
 });
 
 const itinerarySchema = Joi.object({
@@ -36,6 +37,7 @@ const itinerarySchema = Joi.object({
   walletBudget: Joi.number().positive().required(),
   pace: Joi.string().valid("relaxed", "balanced", "full").default("balanced"),
   interests: Joi.array().items(Joi.string()).default([]),
+  travelers: Joi.number().integer().min(1).default(1),
 });
 
 async function callWeatherAPI(lat, lon) {
@@ -109,7 +111,7 @@ function parseGeminiJson(text) {
   }
 
   const cleanText = text.replace(/```json|```/g, "").trim();
-  console.log("Gemini raw response:", cleanText);
+  console.log("Gemini raw response:", cleanText.substring(0, 500));
   const firstBrace = cleanText.indexOf("{");
   let lastBrace = cleanText.lastIndexOf("}");
   if (firstBrace === -1) {
@@ -117,6 +119,30 @@ function parseGeminiJson(text) {
     throw new Error("Incomplete Gemini JSON response");
   }
   if (lastBrace === -1 || lastBrace <= firstBrace) {
+    // Try to recover partial JSON for foods array
+    const foodsStart = cleanText.indexOf('"foods": [');
+    if (foodsStart !== -1) {
+      const arrStart = cleanText.indexOf('[', foodsStart);
+      const arrEnd = cleanText.lastIndexOf(']');
+      if (arrStart !== -1 && arrEnd > arrStart) {
+        const partial = cleanText.slice(firstBrace, arrEnd + 1) + '}';
+        try {
+          return JSON.parse(partial);
+        } catch (err) {
+          // Try to extract individual food objects
+          const foodRegex = /\{[^\{\}]*"name"\s*:\s*"[^"]+"[^\{\}]*"description"\s*:\s*"[^"]+"[^\{\}]*\}/g;
+          const matches = cleanText.match(foodRegex);
+          if (matches && matches.length > 0) {
+            try {
+              const foods = matches.map(objStr => JSON.parse(objStr));
+              return { foods };
+            } catch (err2) {
+              console.error("Regex food extraction failed");
+            }
+          }
+        }
+      }
+    }
     // Try to recover partial JSON by finding the last valid closing bracket for activities array
     const activitiesStart = cleanText.indexOf('"activities": [');
     if (activitiesStart !== -1) {
@@ -209,7 +235,7 @@ async function callGemini(prompt) {
           contents: [{ role: "user", parts: [{ text: prompt }] }],
           generationConfig: {
             temperature: 0.4,
-              maxOutputTokens: 1024,
+              maxOutputTokens: 2048,
             responseMimeType: "application/json",
           },
         },
@@ -255,28 +281,25 @@ router.post("/weather-food", requireAuth, async (req, res) => {
     let foods = [];
     try {
       const prompt = `
-You are a local food expert.
+You are a local food expert. Suggest exactly 3 local dishes.
 
 Location: ${value.locality}
-Weather: ${weather.weather?.[0]?.description}, 
-Temperature: ${weather.main?.temp}°C, feels like ${weather.main?.feels_like}°C.
+Weather: ${weather.weather?.[0]?.description}, Temp: ${weather.main?.temp}°C
 
-Return JSON:
+Return ONLY this JSON (keep descriptions short, under 100 chars each):
 {
   "foods": [
-    {
-      "name": "string",
-      "description": "string",
-      "whyItFitsWeather": "string"
-    }
+    { "name": "dish name", "description": "brief description", "whyItFitsWeather": "short reason" }
   ]
 }
       `;
 
       const result = await callGemini(prompt);
+      console.log("Food suggestions result:", JSON.stringify(result, null, 2));
       foods = result.foods || [];
+      console.log("Parsed foods array:", foods.length, "items");
     } catch (aiErr) {
-      console.warn("Gemini unavailable, skipping food suggestions");
+      console.warn("Gemini food error:", aiErr.message);
     }
 
     res.json({ weather, foods });
@@ -340,6 +363,7 @@ router.post("/wallets", requireAuth, async (req, res) => {
       walletBudgetConverted,
       walletFxRate,
       walletSpent: 0,
+      travelers: value.travelers || 1,
       itinerary: [],
     });
 
@@ -403,16 +427,20 @@ router.post("/itinerary", requireAuth, async (req, res) => {
     pace,
     interests,
     tripId,
+    travelers,
   } = value;
+
+  const numTravelers = travelers || 1;
 
   // Calculate trip days
   const start = new Date(startDate);
   const end = new Date(endDate);
   const daysCount = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1);
   const dailyBudget = Math.floor(walletBudget / daysCount);
+  const dailyBudgetPerPerson = Math.floor(dailyBudget / numTravelers);
 
   // Get summary first
-  const summaryPrompt = `For a trip to ${destination} from ${startDate} to ${endDate} with a budget of ${walletBudget} ${walletCurrency}, give a 2-3 sentence summary in valid JSON: { "aiSummary": "..." }`;
+  const summaryPrompt = `For a trip to ${destination} from ${startDate} to ${endDate} for ${numTravelers} traveler${numTravelers > 1 ? 's' : ''} with a total budget of ${walletBudget} ${walletCurrency}, give a 2-3 sentence summary in valid JSON: { "aiSummary": "..." }`;
   let aiSummary = "";
   try {
     const summaryResult = await callGemini(summaryPrompt);
@@ -428,7 +456,7 @@ router.post("/itinerary", requireAuth, async (req, res) => {
     const dayDate = new Date(start);
     dayDate.setDate(start.getDate() + i);
     const isoDate = dayDate.toISOString().slice(0, 10);
-    const dayPrompt = `For a trip to ${destination} on ${isoDate} with a daily budget of ${dailyBudget} ${walletCurrency}, list 3-5 activities. For each activity, provide: name, description, category, cost, and timeOfDay. Respond in valid JSON: { "activities": [ { "name": "...", "description": "...", "category": "...", "cost": number, "timeOfDay": "..." } ] }`;
+    const dayPrompt = `For a trip to ${destination} on ${isoDate} for ${numTravelers} traveler${numTravelers > 1 ? 's' : ''} with a daily budget of ${dailyBudget} ${walletCurrency} total (${dailyBudgetPerPerson} ${walletCurrency} per person), list 3-5 activities. The costs should be TOTAL for all ${numTravelers} people, not per person. For each activity, provide: name, description, category, cost (total for group), and timeOfDay. Respond in valid JSON: { "activities": [ { "name": "...", "description": "...", "category": "...", "cost": number, "timeOfDay": "..." } ] }`;
     let activities = [];
     let success = false;
     let lastError = null;
@@ -474,6 +502,7 @@ router.post("/itinerary", requireAuth, async (req, res) => {
       walletCurrency,
       walletBudget,
       walletSpent,
+      travelers: numTravelers,
       aiSummary,
       itinerary,
     });
@@ -484,6 +513,7 @@ router.post("/itinerary", requireAuth, async (req, res) => {
     trip.walletCurrency = walletCurrency;
     trip.walletBudget = walletBudget;
     trip.walletSpent = walletSpent;
+    trip.travelers = numTravelers;
     trip.aiSummary = aiSummary;
     trip.itinerary = itinerary;
     await trip.save();

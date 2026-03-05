@@ -5,7 +5,8 @@ import { useSocket } from '../context/SocketContext';
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
 
 export const useChat = (friendId) => {
-  const { accessToken: token } = useAuth();
+  const { accessToken: token, user } = useAuth();
+  const currentUserId = user?._id || user?.id;
   const { socket, sendMessage: socketSendMessage, markAsTyping, markAsRead, typingUsers, clearUnread } = useSocket() || {};
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -13,17 +14,17 @@ export const useChat = (friendId) => {
   const [page, setPage] = useState(1);
   const typingTimeoutRef = useRef(null);
 
-  const headers = {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`
-  };
-
   // Fetch chat history
   const fetchMessages = useCallback(async (pageNum = 1, append = false) => {
     if (!token || !friendId) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/chat/${friendId}?page=${pageNum}&limit=50`, { headers });
+      const res = await fetch(`${API_URL}/chat/${friendId}?page=${pageNum}&limit=50`, { 
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
       const data = await res.json();
       if (res.ok) {
         const newMessages = data.messages || [];
@@ -68,7 +69,10 @@ export const useChat = (friendId) => {
     try {
       const res = await fetch(`${API_URL}/chat/${friendId}`, {
         method: 'POST',
-        headers,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ content })
       });
       const data = await res.json();
@@ -118,17 +122,36 @@ export const useChat = (friendId) => {
     if (!socket || !friendId) return;
 
     const handleReceive = (message) => {
-      if (message.sender === friendId) {
-        setMessages(prev => [...prev, { ...message, sender: friendId }]);
+      // Extract sender ID from message (could be object or string)
+      const senderId = typeof message.sender === 'object' ? message.sender._id : message.sender;
+      
+      // Only add if message is from this friend (not from us)
+      if (senderId === friendId) {
+        setMessages(prev => {
+          // Avoid duplicates
+          if (prev.some(m => m._id === message._id)) return prev;
+          return [...prev, message];
+        });
         // Auto-mark as read if chat is open
         handleMarkAsRead();
       }
     };
 
+    // Also listen for our own sent messages being confirmed
+    const handleSent = (message) => {
+      setMessages(prev => prev.map(m => 
+        m.pending && m.content === message.content 
+          ? { ...message, sender: 'me' } 
+          : m
+      ));
+    };
+
     socket.on('chat:receive', handleReceive);
+    socket.on('chat:sent', handleSent);
 
     return () => {
       socket.off('chat:receive', handleReceive);
+      socket.off('chat:sent', handleSent);
       // Clean up typing timeout
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
@@ -155,6 +178,7 @@ export const useChat = (friendId) => {
     loadMore,
     handleTyping,
     handleMarkAsRead,
-    isTyping: typingUsers?.[friendId] || false
+    isTyping: typingUsers?.[friendId] || false,
+    currentUserId
   };
 };

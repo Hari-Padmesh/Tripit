@@ -10,23 +10,23 @@ export const useProfile = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const headers = {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`
-  };
-
   // Fetch user profile
   const fetchProfile = useCallback(async () => {
     if (!token) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/user/me`, { headers });
+      const res = await fetch(`${API_URL}/user/me`, { 
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
       const data = await res.json();
       if (res.ok) {
         setProfile(data.user);
-        setBeyondlyId(data.user.beyondlyId);
+        setBeyondlyId(data.user?.beyondlyId);
       } else {
-        setError(data.message);
+        setError(data.error || data.message);
       }
     } catch (err) {
       setError('Failed to fetch profile');
@@ -39,7 +39,12 @@ export const useProfile = () => {
   const fetchBeyondlyId = useCallback(async () => {
     if (!token) return;
     try {
-      const res = await fetch(`${API_URL}/user/my-id`, { headers });
+      const res = await fetch(`${API_URL}/user/my-id`, { 
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
       const data = await res.json();
       if (res.ok) {
         setBeyondlyId(data.beyondlyId);
@@ -58,7 +63,10 @@ export const useProfile = () => {
     try {
       const res = await fetch(`${API_URL}/user/me`, {
         method: 'PATCH',
-        headers,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify(updates)
       });
       const data = await res.json();
@@ -66,7 +74,7 @@ export const useProfile = () => {
         setProfile(data.user);
         return { success: true };
       }
-      return { success: false, message: data.message };
+      return { success: false, message: data.message || data.error };
     } catch (err) {
       return { success: false, message: 'Failed to update profile' };
     } finally {
@@ -80,7 +88,10 @@ export const useProfile = () => {
     try {
       const res = await fetch(`${API_URL}/user/location`, {
         method: 'POST',
-        headers,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify(locationData)
       });
       const data = await res.json();
@@ -94,7 +105,12 @@ export const useProfile = () => {
   const fetchLocation = useCallback(async () => {
     if (!token) return null;
     try {
-      const res = await fetch(`${API_URL}/user/location`, { headers });
+      const res = await fetch(`${API_URL}/user/location`, { 
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
       const data = await res.json();
       if (res.ok) {
         return data.location;

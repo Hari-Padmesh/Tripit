@@ -64,26 +64,6 @@
 
 /* ===== Existing Beyondly design tokens ===== */
 :root {
-  --bg: #070918;
-  --bg-elevated: #101326;
-  --bg-soft: #151937;
-  --accent: #4f46e5;
-  --accent-soft: rgba(79, 70, 229, 0.16);
-  --accent-strong: #7c3aed;
-  --text: #f9fafb;
-  --text-soft: #9ca3af;
-  --border-subtle: rgba(148, 163, 184, 0.35);
-  --danger: #ef4444;
-  --success: #22c55e;
-  --radius-xl: 28px;
-  --radius-lg: 18px;
-  --radius-md: 12px;
-  --shadow-soft: 0 18px 60px rgba(15, 23, 42, 0.65);
-  --shadow-subtle: 0 1px 0 rgba(148, 163, 184, 0.4);
-  --blur-bg: blur(22px);
-}
-
-[data-theme="light"] {
   --bg: #f4f5fb;
   --bg-elevated: #ffffff;
   --bg-soft: #eef0ff;
@@ -95,6 +75,26 @@
   --border-subtle: rgba(148, 163, 184, 0.35);
   --danger: #b91c1c;
   --success: #16a34a;
+  --radius-xl: 28px;
+  --radius-lg: 18px;
+  --radius-md: 12px;
+  --shadow-soft: 0 18px 60px rgba(100, 100, 120, 0.15);
+  --shadow-subtle: 0 1px 0 rgba(148, 163, 184, 0.4);
+  --blur-bg: blur(22px);
+}
+
+[data-theme="dark"] {
+  --bg: #070918;
+  --bg-elevated: #101326;
+  --bg-soft: #151937;
+  --accent: #4f46e5;
+  --accent-soft: rgba(79, 70, 229, 0.16);
+  --accent-strong: #7c3aed;
+  --text: #f9fafb;
+  --text-soft: #9ca3af;
+  --border-subtle: rgba(148, 163, 184, 0.35);
+  --danger: #ef4444;
+  --success: #22c55e;
 }
 
 *,
@@ -109,7 +109,7 @@ body {
   padding: 0;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
     "Inter", sans-serif;
-  background: radial-gradient(circle at top, #1e293b 0, var(--bg) 40%, #020617 90%);
+  background: linear-gradient(135deg, #f8fafc 0%, var(--bg) 50%, #e2e8f0 100%);
   color: var(--text);
   min-height: 100vh;
 }
@@ -167,7 +167,7 @@ select {
   border: 1px solid var(--border-subtle);
   padding: 0.75rem 1.4rem;
   background: transparent;
-  color: var(--text);
+  color: #1f2937;
   font-weight: 500;
   font-size: 0.96rem;
   display: inline-flex;
@@ -191,8 +191,8 @@ select {
   border-radius: 999px;
   border: 1px solid var(--border-subtle);
   padding: 0.75rem 1rem;
-  background-color: rgba(15, 23, 42, 0.85);
-  color: var(--text);
+  background-color: #ffffff;
+  color: #1f2937;
   font-size: 0.95rem;
   outline: none;
   transition:
@@ -201,8 +201,13 @@ select {
     background-color 160ms ease;
 }
 
-[data-theme="light"] .input-field {
-  background-color: white;
+.input-field::placeholder {
+  color: #9ca3af;
+}
+
+.input-field option {
+  color: #1f2937;
+  background-color: #ffffff;
 }
 
 .input-field:focus {
@@ -310,6 +315,51 @@ select {
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+.animate-bounce {
+  animation: bounce 1s ease-in-out infinite;
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
   }
 }
 

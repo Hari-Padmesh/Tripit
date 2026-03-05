@@ -13,57 +13,72 @@ export const useFriends = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const headers = {
+  // Helper to get fresh headers with current token
+  const getHeaders = useCallback(() => ({
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${token}`
-  };
+  }), [token]);
 
   // Fetch friends list
   const fetchFriends = useCallback(async () => {
     if (!token) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/friends`, { headers });
+      const res = await fetch(`${API_URL}/friends`, { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) {
-        setFriends(data.friends || []);
+        // Backend returns array directly, each item has { user: {...}, friendshipId, ... }
+        const friendsList = Array.isArray(data) ? data.map(f => ({
+          _id: f.user._id,
+          name: f.user.name,
+          email: f.user.email,
+          beyondlyId: f.user.beyondlyId,
+          avatar: f.user.avatar,
+          isOnline: f.user.isOnline,
+          lastSeen: f.user.lastSeen,
+          friendshipId: f.friendshipId,
+          location: f.location
+        })) : [];
+        setFriends(friendsList);
       } else {
-        setError(data.message);
+        setError(data.message || data.error);
       }
     } catch (err) {
       setError('Failed to fetch friends');
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, getHeaders]);
 
   // Fetch pending friend requests
   const fetchPendingRequests = useCallback(async () => {
     if (!token) return;
     try {
-      const res = await fetch(`${API_URL}/friends/requests`, { headers });
+      const res = await fetch(`${API_URL}/friends/requests`, { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) {
-        setPendingRequests(data.requests || []);
+        // Backend returns array directly
+        setPendingRequests(Array.isArray(data) ? data : []);
       }
     } catch (err) {
       console.error('Failed to fetch requests:', err);
     }
-  }, [token]);
+  }, [token, getHeaders]);
 
   // Fetch sent requests
   const fetchSentRequests = useCallback(async () => {
     if (!token) return;
     try {
-      const res = await fetch(`${API_URL}/friends/requests/sent`, { headers });
+      const res = await fetch(`${API_URL}/friends/requests/sent`, { headers: getHeaders() });
       const data = await res.json();
       if (res.ok) {
-        setSentRequests(data.requests || []);
+        // Backend returns array directly
+        setSentRequests(Array.isArray(data) ? data : []);
       }
     } catch (err) {
       console.error('Failed to fetch sent requests:', err);
     }
-  }, [token]);
+  }, [token, getHeaders]);
 
   // Add friend by Beyondly ID
   const addFriend = useCallback(async (beyondlyId) => {
@@ -72,7 +87,7 @@ export const useFriends = () => {
     try {
       const res = await fetch(`${API_URL}/friends/add`, {
         method: 'POST',
-        headers,
+        headers: getHeaders(),
         body: JSON.stringify({ beyondlyId })
       });
       const data = await res.json();
@@ -80,14 +95,14 @@ export const useFriends = () => {
         await fetchSentRequests();
         return { success: true, message: 'Friend request sent!' };
       } else {
-        return { success: false, message: data.message };
+        return { success: false, message: data.message || data.error };
       }
     } catch (err) {
       return { success: false, message: 'Failed to send request' };
     } finally {
       setLoading(false);
     }
-  }, [token, fetchSentRequests]);
+  }, [token, getHeaders, fetchSentRequests]);
 
   // Accept friend request
   const acceptRequest = useCallback(async (requestId) => {
@@ -95,7 +110,7 @@ export const useFriends = () => {
     try {
       const res = await fetch(`${API_URL}/friends/accept/${requestId}`, {
         method: 'PATCH',
-        headers
+        headers: getHeaders()
       });
       const data = await res.json();
       if (res.ok) {
@@ -106,7 +121,7 @@ export const useFriends = () => {
     } catch (err) {
       return { success: false, message: 'Failed to accept request' };
     }
-  }, [token, fetchFriends, fetchPendingRequests]);
+  }, [token, getHeaders, fetchFriends, fetchPendingRequests]);
 
   // Reject friend request
   const rejectRequest = useCallback(async (requestId) => {
@@ -114,7 +129,7 @@ export const useFriends = () => {
     try {
       const res = await fetch(`${API_URL}/friends/reject/${requestId}`, {
         method: 'PATCH',
-        headers
+        headers: getHeaders()
       });
       if (res.ok) {
         await fetchPendingRequests();
@@ -124,7 +139,7 @@ export const useFriends = () => {
     } catch (err) {
       return { success: false };
     }
-  }, [token, fetchPendingRequests]);
+  }, [token, getHeaders, fetchPendingRequests]);
 
   // Remove friend
   const removeFriend = useCallback(async (friendshipId) => {
@@ -132,7 +147,7 @@ export const useFriends = () => {
     try {
       const res = await fetch(`${API_URL}/friends/${friendshipId}`, {
         method: 'DELETE',
-        headers
+        headers: getHeaders()
       });
       if (res.ok) {
         await fetchFriends();
@@ -142,15 +157,20 @@ export const useFriends = () => {
     } catch (err) {
       return { success: false };
     }
-  }, [token, fetchFriends]);
+  }, [token, getHeaders, fetchFriends]);
 
   // Get friends with online status
+  // Socket data takes priority, but fall back to API data if socket hasn't received status yet
   const getFriendsWithStatus = useCallback(() => {
-    return friends.map(friend => ({
-      ...friend,
-      isOnline: onlineFriends?.[friend._id]?.isOnline || false,
-      lastSeen: onlineFriends?.[friend._id]?.lastSeen || friend.lastSeen
-    }));
+    return friends.map(friend => {
+      const socketStatus = onlineFriends?.[friend._id];
+      return {
+        ...friend,
+        // Use socket status if available, otherwise keep API status
+        isOnline: socketStatus !== undefined ? socketStatus.isOnline : friend.isOnline,
+        lastSeen: socketStatus?.lastSeen || friend.lastSeen
+      };
+    });
   }, [friends, onlineFriends]);
 
   // Initial fetch
@@ -161,6 +181,23 @@ export const useFriends = () => {
       fetchSentRequests();
     }
   }, [token]);
+
+  // Listen for real-time friend request events
+  useEffect(() => {
+    const handleFriendRequest = (event) => {
+      // Add the new request to pending requests directly for instant UI update
+      setPendingRequests(prev => {
+        const exists = prev.some(r => r._id === event.detail._id);
+        if (exists) return prev;
+        return [...prev, event.detail];
+      });
+    };
+
+    window.addEventListener('friend:request:received', handleFriendRequest);
+    return () => {
+      window.removeEventListener('friend:request:received', handleFriendRequest);
+    };
+  }, []);
 
   return {
     friends: getFriendsWithStatus(),

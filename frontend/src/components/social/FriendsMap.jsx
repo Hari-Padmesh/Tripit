@@ -53,35 +53,92 @@ const MapViewController = ({ locations }) => {
       const bounds = L.latLngBounds(
         locations.map(loc => [loc.coordinates.lat, loc.coordinates.lng])
       );
-      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 5 });
+      // Use a lower maxZoom to ensure we can see all markers spread out
+      map.fitBounds(bounds, { padding: [80, 80], maxZoom: 4 });
     }
   }, [locations, map]);
 
   return null;
 };
 
+// Apply small offset to overlapping markers
+const applyOffsetToOverlapping = (locations) => {
+  const offsetLocations = [...locations];
+  const threshold = 0.5; // degrees - roughly 50km
+  
+  for (let i = 0; i < offsetLocations.length; i++) {
+    for (let j = i + 1; j < offsetLocations.length; j++) {
+      const loc1 = offsetLocations[i];
+      const loc2 = offsetLocations[j];
+      const latDiff = Math.abs(loc1.coordinates.lat - loc2.coordinates.lat);
+      const lngDiff = Math.abs(loc1.coordinates.lng - loc2.coordinates.lng);
+      
+      // If markers are too close, apply small offset
+      if (latDiff < threshold && lngDiff < threshold) {
+        offsetLocations[j] = {
+          ...loc2,
+          coordinates: {
+            lat: loc2.coordinates.lat + 0.3,
+            lng: loc2.coordinates.lng + 0.3
+          }
+        };
+      }
+    }
+  }
+  return offsetLocations;
+};
+
 export const FriendsMap = ({ className = '', onSelectFriend }) => {
   const { friendLocations, requestFriendLocations } = useSocket() || {};
   const { friends } = useFriends();
   const [locationsArray, setLocationsArray] = useState([]);
+  const [hasRequestedLocations, setHasRequestedLocations] = useState(false);
 
   useEffect(() => {
-    // Request friend locations on mount
-    if (requestFriendLocations) {
+    // Request friend locations on mount (only once)
+    if (requestFriendLocations && !hasRequestedLocations) {
       requestFriendLocations();
+      setHasRequestedLocations(true);
     }
-  }, [requestFriendLocations]);
+  }, [requestFriendLocations, hasRequestedLocations]);
 
+  // Use a stable reference for friends IDs to avoid infinite loop
+  const friendsKey = friends.map(f => f._id).join(',');
+  
   useEffect(() => {
     // Convert friendLocations object to array with friend details
-    if (friendLocations && friends.length > 0) {
-      const locations = Object.entries(friendLocations)
-        .map(([friendId, location]) => {
-          const friend = friends.find((f) => f._id === friendId);
-          if (friend && location.coordinates) {
+    // Also include location data from friends API if socket data isn't available
+    console.log('FriendsMap: Processing locations', { friends, friendLocations });
+    
+    if (friends.length > 0) {
+      const locations = friends
+        .map((friend) => {
+          // Prefer socket location data, fall back to REST API location data
+          const socketLocation = friendLocations?.[friend._id];
+          const apiLocation = friend.location;
+          const location = socketLocation || apiLocation;
+          
+          console.log(`Friend ${friend.name}: socketLoc=`, socketLocation, 'apiLoc=', apiLocation);
+          
+          // Check if we have valid coordinates
+          const coords = location?.coordinates;
+          // Accept any coordinates that exist (even 0,0 means they set their location)
+          // But we need at least city OR valid non-zero coords
+          const hasCoords = coords && typeof coords.lat === 'number' && typeof coords.lng === 'number';
+          const hasNonZeroCoords = hasCoords && (coords.lat !== 0 || coords.lng !== 0);
+          const hasCity = location?.city && location.city.length > 0;
+          
+          if (location && (hasNonZeroCoords || hasCity)) {
+            // If no coordinates but have city, try to use a default or skip for now
+            // For now, only show if we have actual coordinates
+            if (!hasNonZeroCoords) {
+              console.log(`Friend ${friend.name} has city "${location.city}" but no coordinates`);
+              return null;
+            }
+            
             return {
               ...location,
-              friendId,
+              friendId: friend._id,
               name: friend.name || friend.email,
               isOnline: friend.isOnline,
               initial: (friend.name?.[0] || friend.email?.[0] || '?').toUpperCase()
@@ -91,9 +148,13 @@ export const FriendsMap = ({ className = '', onSelectFriend }) => {
         })
         .filter(Boolean);
       
-      setLocationsArray(locations);
+      // Apply offset to overlapping markers so they're all visible
+      const offsetLocations = applyOffsetToOverlapping(locations);
+      console.log('FriendsMap: Final locations array:', offsetLocations);
+      setLocationsArray(offsetLocations);
     }
-  }, [friendLocations, friends]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [friendLocations, friendsKey]);
 
   const formatLastUpdated = (timestamp) => {
     const date = new Date(timestamp);
@@ -184,14 +245,14 @@ export const FriendsMap = ({ className = '', onSelectFriend }) => {
           {/* Empty state */}
           {locationsArray.length === 0 && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/40 z-[1000]">
-              <div className="text-center p-6">
+              <div className="text-center p-6 max-w-sm">
                 <svg className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
-                <p className="text-lg font-medium text-foreground">No friends on the map yet</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Friends who have shared their location will appear here
+                <p className="text-lg font-medium text-white">No friends on the map yet</p>
+                <p className="text-sm text-slate-400 mt-2">
+                  Friends need to enable "Location Sharing" AND allow browser geolocation to appear here
                 </p>
               </div>
             </div>

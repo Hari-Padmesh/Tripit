@@ -12,6 +12,7 @@ import { FoodCard } from "../../components/dashboard/FoodCard";
 import { TodoCard } from "../../components/dashboard/TodoCard";
 import { ItineraryCard } from "../../components/dashboard/ItineraryCard";
 import { ExpenseCard } from "../../components/dashboard/ExpenseCard";
+import { LocalTimeCard } from "../../components/dashboard/LocalTimeCard";
 import { Plane, MapPin, Calendar, Wallet, Plus, ArrowRight } from "lucide-react";
 
 export default function OverviewPage() {
@@ -117,10 +118,10 @@ export default function OverviewPage() {
       {/* Welcome Header */}
       <header className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white mb-1">
+          <h1 className="text-2xl font-bold text-gray-900 mb-1">
             Welcome back, {userName}! 
           </h1>
-          <p className="text-slate-400 text-sm">
+          <p className="text-gray-500 text-sm">
             Here's what's happening with your travel plans
           </p>
         </div>
@@ -135,53 +136,53 @@ export default function OverviewPage() {
 
       {/* Quick Stats */}
       <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-[#1e293b] rounded-2xl p-4 border border-slate-700/50">
+        <div className="bg-white rounded-2xl p-4 border border-gray-200 shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
-              <Plane className="w-5 h-5 text-blue-400" />
+            <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
+              <Plane className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-white">{trips.length}</p>
-              <p className="text-xs text-slate-500">Total Trips</p>
+              <p className="text-2xl font-bold text-gray-900">{trips.length}</p>
+              <p className="text-xs text-gray-500">Total Trips</p>
             </div>
           </div>
         </div>
-        <div className="bg-[#1e293b] rounded-2xl p-4 border border-slate-700/50">
+        <div className="bg-white rounded-2xl p-4 border border-gray-200 shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-              <Wallet className="w-5 h-5 text-emerald-400" />
+            <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
+              <Wallet className="w-5 h-5 text-emerald-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-white">
+              <p className="text-2xl font-bold text-gray-900">
                 ${trips.reduce((sum, t) => sum + (t.walletBudget || 0), 0).toLocaleString()}
               </p>
-              <p className="text-xs text-slate-500">Total Budget</p>
+              <p className="text-xs text-gray-500">Total Budget</p>
             </div>
           </div>
         </div>
-        <div className="bg-[#1e293b] rounded-2xl p-4 border border-slate-700/50">
+        <div className="bg-white rounded-2xl p-4 border border-gray-200 shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
-              <MapPin className="w-5 h-5 text-purple-400" />
+            <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">
+              <MapPin className="w-5 h-5 text-purple-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-white">
+              <p className="text-2xl font-bold text-gray-900">
                 {new Set(trips.map(t => t.destination)).size}
               </p>
-              <p className="text-xs text-slate-500">Destinations</p>
+              <p className="text-xs text-gray-500">Destinations</p>
             </div>
           </div>
         </div>
-        <div className="bg-[#1e293b] rounded-2xl p-4 border border-slate-700/50">
+        <div className="bg-white rounded-2xl p-4 border border-gray-200 shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
-              <Calendar className="w-5 h-5 text-amber-400" />
+            <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
+              <Calendar className="w-5 h-5 text-amber-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-white">
+              <p className="text-2xl font-bold text-gray-900">
                 {trips.filter(t => new Date(t.endDate) > new Date()).length}
               </p>
-              <p className="text-xs text-slate-500">Upcoming</p>
+              <p className="text-xs text-gray-500">Upcoming</p>
             </div>
           </div>
         </div>
@@ -192,7 +193,7 @@ export default function OverviewPage() {
         {/* Left Column - Primary Cards */}
         <div className="lg:col-span-2 space-y-6">
           {/* Location & Weather Row */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <LocationCard
               city={location?.city || data?.weather?.name}
               country={location?.country}
@@ -205,6 +206,7 @@ export default function OverviewPage() {
               loading={weatherLoading}
               error={locationError || (weatherError ? "Failed to load weather" : undefined)}
             />
+            <LocalTimeCard />
           </div>
 
           {/* Itinerary Card */}
@@ -263,38 +265,38 @@ export default function OverviewPage() {
           />
 
           {/* Quick Actions */}
-          <div className="bg-[#1e293b] rounded-2xl p-5 border border-slate-700/50">
-            <h3 className="text-sm font-medium text-slate-400 mb-4">Quick Actions</h3>
+          <div className="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm">
+            <h3 className="text-sm font-medium text-gray-500 mb-4">Quick Actions</h3>
             <div className="space-y-2">
               <button
                 onClick={() => navigate("/dashboard/trip/new")}
-                className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-slate-800/50 hover:bg-slate-800 text-white text-sm transition-colors"
+                className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-900 text-sm transition-colors"
               >
                 <span className="flex items-center gap-2">
-                  <Plus className="w-4 h-4 text-blue-400" />
+                  <Plus className="w-4 h-4 text-blue-600" />
                   Plan New Trip
                 </span>
-                <ArrowRight className="w-4 h-4 text-slate-500" />
+                <ArrowRight className="w-4 h-4 text-gray-400" />
               </button>
               <button
                 onClick={() => navigate("/dashboard/trips/history")}
-                className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-slate-800/50 hover:bg-slate-800 text-white text-sm transition-colors"
+                className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-900 text-sm transition-colors"
               >
                 <span className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-purple-400" />
+                  <Calendar className="w-4 h-4 text-purple-600" />
                   View Trip History
                 </span>
-                <ArrowRight className="w-4 h-4 text-slate-500" />
+                <ArrowRight className="w-4 h-4 text-gray-400" />
               </button>
               <button
                 onClick={() => navigate("/dashboard/tools/translate")}
-                className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-slate-800/50 hover:bg-slate-800 text-white text-sm transition-colors"
+                className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-900 text-sm transition-colors"
               >
                 <span className="flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-emerald-400" />
+                  <MapPin className="w-4 h-4 text-emerald-600" />
                   Translate Text
                 </span>
-                <ArrowRight className="w-4 h-4 text-slate-500" />
+                <ArrowRight className="w-4 h-4 text-gray-400" />
               </button>
             </div>
           </div>

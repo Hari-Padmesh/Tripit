@@ -2,6 +2,7 @@ import express from "express";
 import { requireAuth } from "../middleware/auth.js";
 import { User } from "../models/User.js";
 import { UserLocation } from "../models/UserLocation.js";
+import { geocodeCity } from "../utils/geocoding.js";
 
 const router = express.Router();
 
@@ -65,7 +66,7 @@ router.patch("/me", requireAuth, async (req, res) => {
     const user = await User.findByIdAndUpdate(
       req.user.id,
       { $set: updateFields },
-      { new: true }
+      { returnDocument: 'after' }
     ).select("-passwordHash");
 
     res.json({ user });
@@ -80,7 +81,19 @@ router.patch("/me", requireAuth, async (req, res) => {
 -------------------------------------------------- */
 router.post("/location", requireAuth, async (req, res) => {
   try {
-    const { city, country, lat, lng, source } = req.body;
+    let { city, country, lat, lng, source } = req.body;
+    
+    // If no coordinates provided but have city, try to geocode
+    if ((!lat || !lng || (lat === 0 && lng === 0)) && city) {
+      console.log(`Geocoding city: ${city}, ${country}`);
+      const geocoded = await geocodeCity(city, country);
+      if (geocoded) {
+        lat = geocoded.lat;
+        lng = geocoded.lng;
+        source = source || "geocoded";
+        console.log(`Geocoded to: ${lat}, ${lng}`);
+      }
+    }
     
     const location = await UserLocation.findOneAndUpdate(
       { userId: req.user.id },
@@ -93,7 +106,7 @@ router.post("/location", requireAuth, async (req, res) => {
           updatedAt: new Date(),
         },
       },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
 
     res.json(location);

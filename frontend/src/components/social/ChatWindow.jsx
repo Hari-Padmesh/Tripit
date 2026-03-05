@@ -4,7 +4,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 
 export const ChatWindow = ({ friend, onClose }) => {
-  const { messages, loading, hasMore, sendMessage, loadMore, handleTyping, isTyping } = useChat(friend._id);
+  const { messages, loading, hasMore, sendMessage, loadMore, handleTyping, isTyping, currentUserId } = useChat(friend._id);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef(null);
@@ -49,12 +49,16 @@ export const ChatWindow = ({ friend, onClose }) => {
   };
 
   const formatTime = (dateStr) => {
+    if (!dateStr) return '';
     const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return '';
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   const formatDate = (dateStr) => {
+    if (!dateStr) return 'Today';
     const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return 'Today';
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
@@ -102,11 +106,11 @@ export const ChatWindow = ({ friend, onClose }) => {
           <span className="font-semibold truncate block">{friend.name || friend.email}</span>
           <span className="text-xs text-muted-foreground">
             {friend.isOnline ? (
-              <span className="text-green-400">Online</span>
+              <span className="text-green-500">Online</span>
             ) : (
               'Offline'
             )}
-            {isTyping && <span className="text-indigo-400 ml-2">typing...</span>}
+            {isTyping && <span className="text-indigo-600 ml-2">typing...</span>}
           </span>
         </div>
       </div>
@@ -156,7 +160,9 @@ export const ChatWindow = ({ friend, onClose }) => {
                 {/* Messages for this date */}
                 <div className="space-y-2">
                   {msgs.map((message) => {
-                    const isMe = message.sender === 'me' || message.sender === message.currentUserId;
+                    // Determine if message is from current user
+                    const senderId = typeof message.sender === 'object' ? message.sender._id : message.sender;
+                    const isMe = senderId === currentUserId || message.sender === 'me';
                     return (
                       <div
                         key={message._id}
@@ -166,11 +172,11 @@ export const ChatWindow = ({ friend, onClose }) => {
                           className={`max-w-[75%] px-4 py-2 rounded-2xl ${
                             isMe
                               ? 'bg-indigo-600 text-white rounded-br-md'
-                              : 'bg-muted rounded-bl-md'
+                              : 'bg-gray-100 text-gray-900 rounded-bl-md'
                           } ${message.pending ? 'opacity-60' : ''}`}
                         >
                           <p className="break-words">{message.content}</p>
-                          <div className={`text-xs mt-1 ${isMe ? 'text-indigo-200' : 'text-muted-foreground'}`}>
+                          <div className={`text-xs mt-1 ${isMe ? 'text-indigo-200' : 'text-gray-500'}`}>
                             {formatTime(message.createdAt)}
                             {isMe && message.read && (
                               <span className="ml-1">✓✓</span>
@@ -203,14 +209,14 @@ export const ChatWindow = ({ friend, onClose }) => {
       </div>
 
       {/* Input */}
-      <div className="p-4 border-t border-border bg-muted/30">
+      <div className="p-4 border-t border-border bg-gray-50">
         <div className="flex gap-2">
           <Input
             value={newMessage}
             onChange={handleInputChange}
             onKeyPress={handleKeyPress}
             placeholder="Type a message..."
-            className="flex-1"
+            className="flex-1 bg-white text-gray-900 placeholder:text-gray-400 border-gray-300"
             maxLength={2000}
           />
           <Button

@@ -6,3 +6,4 @@ export { FoodCard } from "./FoodCard";
 export { TodoCard } from "./TodoCard";
 export { ItineraryCard } from "./ItineraryCard";
 export { ExpenseCard } from "./ExpenseCard";
+export { LocalTimeCard } from "./LocalTimeCard";
