@@ -84,8 +84,9 @@ export default function TripsHistoryPage() {
     };
   }, [trips, allRates, convert, user?.preferredCurrency]);
 
-  // Group trips by month/year
+  // Group trips by month/year with currency conversion
   const tripsByMonth = useMemo(() => {
+    const homeCurrency = user?.preferredCurrency || "USD";
     const grouped = {};
     trips.forEach((trip) => {
       const date = new Date(trip.startDate || Date.now());
@@ -101,15 +102,26 @@ export default function TripsHistoryPage() {
         };
       }
       grouped[key].trips.push(trip);
-      grouped[key].totalBudget += trip.walletBudget || 0;
-      grouped[key].totalSpent += trip.walletSpent || 0;
+      
+      // Convert budget and spent to home currency
+      const tripCurrency = trip.walletCurrency || "USD";
+      const budget = trip.walletBudget || 0;
+      const spent = trip.walletSpent || 0;
+      
+      if (tripCurrency === homeCurrency || !allRates?.rates) {
+        grouped[key].totalBudget += budget;
+        grouped[key].totalSpent += spent;
+      } else {
+        grouped[key].totalBudget += convert(budget, tripCurrency, allRates);
+        grouped[key].totalSpent += convert(spent, tripCurrency, allRates);
+      }
     });
     // Sort by most recent month first (descending)
     return Object.values(grouped).sort((a, b) => {
       if (a.year !== b.year) return b.year - a.year;
       return b.month - a.month;
     });
-  }, [trips]);
+  }, [trips, allRates, convert, user?.preferredCurrency]);
 
   return (
     <div className="space-y-6">
@@ -192,7 +204,7 @@ export default function TripsHistoryPage() {
         {/* Left Column - Trips List */}
         <div className="lg:col-span-2 space-y-6">
           {/* Monthly Spending Overview */}
-          {summary.length > 0 && (
+          {tripsByMonth.length > 0 && (
             <div className="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm">
               <div className="flex items-center gap-2 mb-4">
                 <div className="w-8 h-8 rounded-xl bg-blue-100 flex items-center justify-center">
@@ -201,17 +213,17 @@ export default function TripsHistoryPage() {
                 <h2 className="font-semibold text-gray-900">Monthly Spending</h2>
               </div>
               <div className="space-y-4">
-                {summary.slice(0, 6).map((row, idx) => {
-                  const maxSpent = Math.max(...summary.map(s => s.totalSpent || 1));
+                {tripsByMonth.slice(0, 6).map((row, idx) => {
+                  const maxSpent = Math.max(...tripsByMonth.map(s => s.totalSpent || 1));
                   const percentage = ((row.totalSpent || 0) / maxSpent) * 100;
                   return (
                     <div key={idx} className="space-y-2">
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-500">
-                          {MONTH_NAMES[row._id.month - 1]} {row._id.year}
+                          {row.monthName} {row.year}
                         </span>
                         <span className="font-medium text-gray-900">
-                          ${row.totalSpent?.toFixed(0) || 0} <span className="text-gray-400">{row.currency || "USD"}</span>
+                          {convertedTotals.symbol}{Math.round(row.totalSpent).toLocaleString()} <span className="text-gray-400">{user?.preferredCurrency || "USD"}</span>
                         </span>
                       </div>
                       <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
