@@ -34,7 +34,7 @@ router.get("/me", authenticateAccessToken, async (req, res) => {
   try {
     const user = await User.findById(req.user.sub);
     if (!user) return res.status(404).json({ error: "User not found" });
-    res.json({ id: user.id, email: user.email, name: user.name });
+    res.json({ id: user.id, email: user.email, name: user.name, preferredCurrency: user.preferredCurrency });
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch user info" });
   }
@@ -51,6 +51,7 @@ const signupSchema = Joi.object({
       "string.pattern.base":
         "Password must include lowercase, uppercase, number and special character.",
     }),
+  preferredCurrency: Joi.string().length(3).default("USD"),
 });
 
 const loginSchema = Joi.object({
@@ -92,6 +93,7 @@ router.post("/signup", async (req, res) => {
       email: value.email,
       name: value.name,
       passwordHash,
+      preferredCurrency: value.preferredCurrency || "USD",
     });
 
     const { accessToken, refreshToken, expiresAt } = await createSessionAndTokens(
@@ -108,7 +110,7 @@ router.post("/signup", async (req, res) => {
       })
       .status(201)
       .json({
-        user: { id: user.id, email: user.email, name: user.name },
+        user: { id: user.id, email: user.email, name: user.name, preferredCurrency: user.preferredCurrency },
         accessToken,
       });
   } catch (err) {
@@ -148,7 +150,7 @@ router.post("/login", async (req, res) => {
         expires: expiresAt,
       })
       .json({
-        user: { id: user.id, email: user.email, name: user.name },
+        user: { id: user.id, email: user.email, name: user.name, preferredCurrency: user.preferredCurrency },
         accessToken,
       });
   } catch (err) {

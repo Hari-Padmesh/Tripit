@@ -68,8 +68,8 @@ export function AuthProvider({ children }) {
     window.sessionStorage.setItem("beyondly-access-token", res.data.accessToken);
   }, []);
 
-  const signup = useCallback(async (name, email, password) => {
-    const res = await apiClient.post("/auth/signup", { name, email, password });
+  const signup = useCallback(async (name, email, password, preferredCurrency = "USD") => {
+    const res = await apiClient.post("/auth/signup", { name, email, password, preferredCurrency });
     setUser(res.data.user);
     setAccessToken(res.data.accessToken);
     window.sessionStorage.setItem(
@@ -97,6 +97,7 @@ export function AuthProvider({ children }) {
 
   const value = {
     user,
+    setUser,
     accessToken,
     loading,
     login,

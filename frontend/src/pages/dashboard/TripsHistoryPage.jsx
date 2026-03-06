@@ -1,6 +1,8 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTrips } from "../../hooks/useTrips.js";
+import { useAuth } from "../../context/AuthContext.jsx";
+import { useFxRates } from "../../hooks/useFxRates.js";
 import { Calendar, MapPin, Wallet, TrendingUp, ChevronRight, Plane, Plus, Clock, Users, Trash2, X, AlertTriangle } from "lucide-react";
 
 const MONTH_NAMES = [
@@ -8,9 +10,17 @@ const MONTH_NAMES = [
   "July", "August", "September", "October", "November", "December"
 ];
 
+// Currency symbols map
+const currencySymbols = {
+  USD: "$", EUR: "€", GBP: "£", INR: "₹", JPY: "¥", CAD: "C$", AUD: "A$",
+  CHF: "CHF", CNY: "¥", SGD: "S$", AED: "د.إ", MXN: "$", BRL: "R$", KRW: "₩", THB: "฿"
+};
+
 export default function TripsHistoryPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { trips, fetchMonthlySummary, deleteTrip } = useTrips();
+  const { allRates, fetchAllRates, convert } = useFxRates();
   const [summary, setSummary] = useState([]);
   const [deletingId, setDeletingId] = useState(null);
   const [tripToDelete, setTripToDelete] = useState(null);
@@ -38,6 +48,41 @@ export default function TripsHistoryPage() {
       .then(setSummary)
       .catch(() => setSummary([]));
   }, [fetchMonthlySummary]);
+
+  // Fetch exchange rates on mount for conversion
+  useEffect(() => {
+    const homeCurrency = user?.preferredCurrency || "USD";
+    fetchAllRates(homeCurrency);
+  }, [user?.preferredCurrency, fetchAllRates]);
+
+  // Calculate converted totals
+  const convertedTotals = useMemo(() => {
+    const homeCurrency = user?.preferredCurrency || "USD";
+    
+    const totalBudget = trips.reduce((sum, t) => {
+      const budget = t.walletBudget || 0;
+      const tripCurrency = t.walletCurrency || "USD";
+      if (tripCurrency === homeCurrency || !allRates?.rates) {
+        return sum + budget;
+      }
+      return sum + convert(budget, tripCurrency, allRates);
+    }, 0);
+
+    const totalSpent = trips.reduce((sum, t) => {
+      const spent = t.walletSpent || 0;
+      const tripCurrency = t.walletCurrency || "USD";
+      if (tripCurrency === homeCurrency || !allRates?.rates) {
+        return sum + spent;
+      }
+      return sum + convert(spent, tripCurrency, allRates);
+    }, 0);
+
+    return {
+      totalBudget: Math.round(totalBudget * 100) / 100,
+      totalSpent: Math.round(totalSpent * 100) / 100,
+      symbol: currencySymbols[homeCurrency] || "$"
+    };
+  }, [trips, allRates, convert, user?.preferredCurrency]);
 
   // Group trips by month/year
   const tripsByMonth = useMemo(() => {
@@ -106,7 +151,7 @@ export default function TripsHistoryPage() {
             </div>
             <div>
               <p className="text-2xl font-bold text-gray-900">
-                ${trips.reduce((sum, t) => sum + (t.walletBudget || 0), 0).toLocaleString()}
+                {convertedTotals.symbol}{convertedTotals.totalBudget.toLocaleString()}
               </p>
               <p className="text-xs text-gray-500">Total Budget</p>
             </div>
@@ -120,7 +165,7 @@ export default function TripsHistoryPage() {
             </div>
             <div>
               <p className="text-2xl font-bold text-gray-900">
-                ${trips.reduce((sum, t) => sum + (t.walletSpent || 0), 0).toLocaleString()}
+                {convertedTotals.symbol}{convertedTotals.totalSpent.toLocaleString()}
               </p>
               <p className="text-xs text-gray-500">Total Spent</p>
             </div>

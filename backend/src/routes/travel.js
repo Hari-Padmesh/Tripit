@@ -329,6 +329,24 @@ router.get("/fx-rates", requireAuth, async (req, res) => {
 });
 
 /* --------------------------------------------------
+   FX RATES - ALL RATES FOR A BASE CURRENCY
+-------------------------------------------------- */
+router.get("/fx-rates/all", requireAuth, async (req, res) => {
+  const { base } = req.query;
+  if (!base || base.length !== 3) {
+    return res.status(400).json({ error: "Base currency code required (3 chars)" });
+  }
+
+  try {
+    const data = await callFxAPI(base.toUpperCase(), "USD"); // target doesn't matter, we get all rates
+    res.json({ base: data.base, rates: data.rates, date: data.date });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch FX rates" });
+  }
+});
+
+/* --------------------------------------------------
    CREATE WALLET / TRIP
 -------------------------------------------------- */
 router.post("/wallets", requireAuth, async (req, res) => {

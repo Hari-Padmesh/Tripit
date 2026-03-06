@@ -9,10 +9,29 @@ import { Badge } from "../components/ui/badge";
 const passwordHint =
   "At least 8 characters, with lowercase, uppercase, number and special character.";
 
+// Common currencies for home currency selection
+const CURRENCIES = [
+  { code: "USD", name: "US Dollar", symbol: "$" },
+  { code: "EUR", name: "Euro", symbol: "€" },
+  { code: "GBP", name: "British Pound", symbol: "£" },
+  { code: "INR", name: "Indian Rupee", symbol: "₹" },
+  { code: "JPY", name: "Japanese Yen", symbol: "¥" },
+  { code: "CAD", name: "Canadian Dollar", symbol: "C$" },
+  { code: "AUD", name: "Australian Dollar", symbol: "A$" },
+  { code: "CHF", name: "Swiss Franc", symbol: "CHF" },
+  { code: "CNY", name: "Chinese Yuan", symbol: "¥" },
+  { code: "SGD", name: "Singapore Dollar", symbol: "S$" },
+  { code: "AED", name: "UAE Dirham", symbol: "د.إ" },
+  { code: "MXN", name: "Mexican Peso", symbol: "$" },
+  { code: "BRL", name: "Brazilian Real", symbol: "R$" },
+  { code: "KRW", name: "South Korean Won", symbol: "₩" },
+  { code: "THB", name: "Thai Baht", symbol: "฿" },
+];
+
 export default function SignUpPage() {
   const { signup } = useAuth();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const [form, setForm] = useState({ name: "", email: "", password: "", preferredCurrency: "USD" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -25,7 +44,7 @@ export default function SignUpPage() {
     setError("");
     try {
       setLoading(true);
-      await signup(form.name, form.email, form.password);
+      await signup(form.name, form.email, form.password, form.preferredCurrency);
       navigate("/dashboard/overview");
     } catch (err) {
       setError(
@@ -95,6 +114,24 @@ export default function SignUpPage() {
                   required
                 />
                 <div className="text-xs text-muted-foreground mt-1">{passwordHint}</div>
+              </div>
+              <div>
+                <label htmlFor="preferredCurrency" className="block text-sm font-medium mb-1">Home Currency</label>
+                <select
+                  id="preferredCurrency"
+                  name="preferredCurrency"
+                  value={form.preferredCurrency}
+                  onChange={onChange}
+                  className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  required
+                >
+                  {CURRENCIES.map(c => (
+                    <option key={c.code} value={c.code}>
+                      {c.code} - {c.name} ({c.symbol})
+                    </option>
+                  ))}
+                </select>
+                <div className="text-xs text-muted-foreground mt-1">This will be used to calculate your total travel budget</div>
               </div>
               {error && (
                 <div className="rounded-md px-3 py-2 text-sm text-destructive bg-destructive/10 border border-destructive/40">{error}</div>

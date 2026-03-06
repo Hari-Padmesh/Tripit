@@ -27,12 +27,18 @@ const travelQuotes = [
   { text: "Adventure is worthwhile in itself.", author: "Amelia Earhart" },
 ];
 
+// Currency symbols map
+const currencySymbols = {
+  USD: "$", EUR: "€", GBP: "£", INR: "₹", JPY: "¥", CAD: "C$", AUD: "A$",
+  CHF: "CHF", CNY: "¥", SGD: "S$", AED: "د.إ", MXN: "$", BRL: "R$", KRW: "₩", THB: "฿"
+};
+
 export default function OverviewPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { data, loading: weatherLoading, error: weatherError, fetchWeatherAndFood } = useWeather();
   const { trips, generateItinerary } = useTrips();
-  const { rate, loading: fxLoading, error: fxError, fetchRate } = useFxRates();
+  const { rate, allRates, loading: fxLoading, error: fxError, fetchRate, fetchAllRates, convert } = useFxRates();
   
   const [locationError, setLocationError] = useState("");
   const [locationLoading, setLocationLoading] = useState(true);
@@ -75,18 +81,36 @@ export default function OverviewPage() {
     return null;
   }, [trips]);
 
-  // Calculate travel stats
-  const stats = useMemo(() => ({
-    totalTrips: trips.length,
-    totalBudget: trips.reduce((sum, t) => sum + (t.walletBudget || 0), 0),
-    destinations: new Set(trips.map(t => t.destination)).size,
-    upcoming: trips.filter(t => new Date(t.endDate) > new Date()).length,
-    totalDays: trips.reduce((sum, t) => {
-      const start = new Date(t.startDate);
-      const end = new Date(t.endDate);
-      return sum + Math.ceil((end - start) / (1000 * 60 * 60 * 24));
-    }, 0)
-  }), [trips]);
+  // Calculate travel stats with currency conversion
+  const stats = useMemo(() => {
+    const homeCurrency = user?.preferredCurrency || "USD";
+    
+    // Convert each trip's budget to home currency
+    const totalBudget = trips.reduce((sum, t) => {
+      const budget = t.walletBudget || 0;
+      const tripCurrency = t.walletCurrency || "USD";
+      
+      // If same currency or no rates, use raw value
+      if (tripCurrency === homeCurrency || !allRates?.rates) {
+        return sum + budget;
+      }
+      
+      // Convert from trip currency to home currency
+      return sum + convert(budget, tripCurrency, allRates);
+    }, 0);
+    
+    return {
+      totalTrips: trips.length,
+      totalBudget: Math.round(totalBudget * 100) / 100,
+      destinations: new Set(trips.map(t => t.destination)).size,
+      upcoming: trips.filter(t => new Date(t.endDate) > new Date()).length,
+      totalDays: trips.reduce((sum, t) => {
+        const start = new Date(t.startDate);
+        const end = new Date(t.endDate);
+        return sum + Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+      }, 0)
+    };
+  }, [trips, allRates, convert, user?.preferredCurrency]);
 
   // Calculate category-wise spending from itinerary
   const expenseCategories = useMemo(() => {
@@ -152,6 +176,12 @@ export default function OverviewPage() {
       },
     );
   }, [fetchWeatherAndFood]);
+
+  // Fetch exchange rates on mount for budget conversion
+  useEffect(() => {
+    const homeCurrency = user?.preferredCurrency || "USD";
+    fetchAllRates(homeCurrency);
+  }, [user?.preferredCurrency, fetchAllRates]);
 
   // Update location info when weather data arrives
   useEffect(() => {
@@ -277,7 +307,7 @@ export default function OverviewPage() {
           { 
             key: 'budget', 
             icon: Wallet, 
-            value: `$${stats.totalBudget.toLocaleString()}`, 
+            value: `${currencySymbols[user?.preferredCurrency] || '$'}${stats.totalBudget.toLocaleString()}`, 
             label: 'Total Budget', 
             color: 'emerald',
             gradient: 'from-emerald-500 to-emerald-600'
