@@ -43,12 +43,13 @@ app.use(passport.initialize());
 // Make io available to routes
 app.set("io", io);
 
-app.use("/auth", authRouter);
-app.use("/travel", travelRouter);
-app.use("/translate", translateRouter);
-app.use("/user", userRouter);
-app.use("/friends", friendsRouter);
-app.use("/chat", chatRouter);
+
+app.use("/api/auth", authRouter);
+app.use("/api/travel", travelRouter);
+app.use("/api/translate", translateRouter);
+app.use("/api/user", userRouter);
+app.use("/api/friends", friendsRouter);
+app.use("/api/chat", chatRouter);
 
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", service: "beyondly-backend" });
