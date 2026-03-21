@@ -104,7 +104,7 @@ router.post("/signup", async (req, res) => {
     res
       .cookie("refreshToken", refreshToken, {
         httpOnly: true,
-        sameSite: "lax",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
         secure: process.env.NODE_ENV === "production",
         expires: expiresAt,
       })
@@ -145,7 +145,7 @@ router.post("/login", async (req, res) => {
     res
       .cookie("refreshToken", refreshToken, {
         httpOnly: true,
-        sameSite: "lax",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
         secure: process.env.NODE_ENV === "production",
         expires: expiresAt,
       })
@@ -182,7 +182,7 @@ router.post("/refresh", async (req, res) => {
     res
       .cookie("refreshToken", refreshToken, {
         httpOnly: true,
-        sameSite: "lax",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
         secure: process.env.NODE_ENV === "production",
         expires: expiresAt,
       })
@@ -234,7 +234,7 @@ router.get(
     res
       .cookie("refreshToken", refreshToken, {
         httpOnly: true,
-        sameSite: "lax",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
         secure: process.env.NODE_ENV === "production",
         expires: expiresAt,
       })
