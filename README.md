@@ -2,7 +2,6 @@
 
 Beyondly is a full-stack travel companion web application that helps you plan trips, track expenses, discover local weather and food suggestions, translate text on-the-go, and stay connected with friends while travelling.
 
-![Tripit Dashboard Preview](preview16.jpg)
 
 ---
 
