@@ -112,7 +112,7 @@ export default function OverviewPage() {
     };
   }, [trips, allRates, convert, user?.preferredCurrency]);
 
-  // Calculate category-wise spending from itinerary
+
   const expenseCategories = useMemo(() => {
     const categoryMap = {
       food: { name: "Food", amount: 0, color: "bg-orange-400", keywords: ["food", "restaurant", "dining", "eat", "meal", "breakfast", "lunch", "dinner", "cafe", "cuisine"] },
