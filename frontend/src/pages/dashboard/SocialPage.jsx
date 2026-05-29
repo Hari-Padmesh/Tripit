@@ -6,7 +6,7 @@ import { useProfile } from '../../hooks/useProfile';
 const SocialPage = () => {
   const [isAddFriendOpen, setIsAddFriendOpen] = useState(false);
   const [selectedFriend, setSelectedFriend] = useState(null);
-  const { isConnected, notifications, dismissNotification, updateLocation } = useSocket() || {};
+  const { isConnected, connectionStatus, notifications, dismissNotification, updateLocation } = useSocket() || {};
   const { profile, updateProfile } = useProfile();
   const [showNotification, setShowNotification] = useState(null);
 
@@ -70,6 +70,20 @@ const SocialPage = () => {
     await updateProfile({ locationVisible: !profile?.locationVisible });
   };
 
+  const statusLabel = connectionStatus === 'connected'
+    ? 'Connected'
+    : connectionStatus === 'connecting'
+      ? 'Connecting...'
+      : isConnected
+        ? 'Connected'
+        : 'Disconnected';
+
+  const statusDotClass = connectionStatus === 'connected' || isConnected
+    ? 'bg-green-500'
+    : connectionStatus === 'connecting'
+      ? 'bg-amber-500'
+      : 'bg-red-500';
+
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
       {/* Header */}
@@ -86,9 +100,9 @@ const SocialPage = () => {
         
         {/* Connection status */}
         <div className="flex items-center gap-2 text-sm">
-          <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
+          <div className={`w-2 h-2 rounded-full ${statusDotClass}`} />
           <span className="text-gray-500">
-            {isConnected ? 'Connected' : 'Disconnected'}
+            {statusLabel}
           </span>
         </div>
       </div>

@@ -10,6 +10,7 @@ export const SocketProvider = ({ children }) => {
   const { accessToken, user } = useAuth();
   const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState("disconnected");
   const [onlineFriends, setOnlineFriends] = useState({});
   const [friendLocations, setFriendLocations] = useState({});
   const [unreadMessages, setUnreadMessages] = useState({});
@@ -22,6 +23,7 @@ export const SocketProvider = ({ children }) => {
         socket.disconnect();
         setSocket(null);
         setIsConnected(false);
+        setConnectionStatus("disconnected");
       }
       return;
     }
@@ -29,6 +31,7 @@ export const SocketProvider = ({ children }) => {
     console.log('Initializing socket connection...');
     const socketUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
     console.log('Socket URL:', socketUrl);
+    setConnectionStatus("connecting");
 
     const newSocket = io(socketUrl, {
       auth: { token: accessToken },
@@ -38,19 +41,32 @@ export const SocketProvider = ({ children }) => {
       reconnectionDelay: 1000
     });
 
+    if (newSocket.connected) {
+      setIsConnected(true);
+      setConnectionStatus("connected");
+    }
+
     newSocket.on('connect', () => {
       setIsConnected(true);
+      setConnectionStatus("connected");
       console.log('Socket connected with ID:', newSocket.id);
+    });
+
+    newSocket.on('reconnect', () => {
+      setIsConnected(true);
+      setConnectionStatus("connected");
     });
 
     newSocket.on('disconnect', (reason) => {
       setIsConnected(false);
+      setConnectionStatus("disconnected");
       console.log('Socket disconnected:', reason);
     });
 
     newSocket.on('connect_error', (error) => {
       console.error('Socket connection error:', error.message);
       setIsConnected(false);
+      setConnectionStatus("disconnected");
     });
 
     // Friend status updates
@@ -168,6 +184,7 @@ export const SocketProvider = ({ children }) => {
     unreadMessages,
     typingUsers,
     notifications,
+    connectionStatus,
     sendMessage,
     markAsTyping,
     markAsRead,
