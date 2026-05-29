@@ -7,23 +7,27 @@ export function useTranslate(sourceLangDefault = "en", targetLangDefault = "es")
   const [targetLang, setTargetLang] = useState(targetLangDefault);
   const [translated, setTranslated] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (!text.trim()) {
       setTranslated("");
+      setError("");
       return;
     }
     const timeout = setTimeout(async () => {
       try {
         setLoading(true);
+        setError("");
         const res = await apiClient.post("/translate", {
           text,
           sourceLang,
           targetLang,
         });
         setTranslated(res.data.translatedText);
-      } catch {
+      } catch (err) {
         setTranslated("");
+        setError(err?.response?.data?.error || "Failed to translate text");
       } finally {
         setLoading(false);
       }
@@ -54,6 +58,7 @@ export function useTranslate(sourceLangDefault = "en", targetLangDefault = "es")
     targetLang,
     setTargetLang,
     translated,
+    error,
     loading,
     onChangeText,
     swapLanguages,

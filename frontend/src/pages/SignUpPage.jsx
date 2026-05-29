@@ -5,6 +5,7 @@ import { Button } from "../components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Badge } from "../components/ui/badge";
+import { getApiBaseUrl } from "../api/baseUrl.js";
 
 const passwordHint =
   "At least 8 characters, with lowercase, uppercase, number and special character.";
@@ -56,9 +57,7 @@ export default function SignUpPage() {
   };
 
   const onGoogle = () => {
-    window.location.href = `${
-      import.meta.env.VITE_API_BASE_URL || "http://localhost:4000"
-    }/auth/google`;
+    window.location.href = `${getApiBaseUrl()}/auth/google`;
   };
 
   return (

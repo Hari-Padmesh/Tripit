@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { io } from 'socket.io-client';
 import { useAuth } from './AuthContext';
+import { getBackendOrigin } from '../api/baseUrl.js';
 
 const SocketContext = createContext(null);
 
@@ -29,7 +30,7 @@ export const SocketProvider = ({ children }) => {
     }
 
     console.log('Initializing socket connection...');
-    const socketUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
+    const socketUrl = getBackendOrigin();
     console.log('Socket URL:', socketUrl);
     setConnectionStatus("connecting");
 

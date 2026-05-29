@@ -102,6 +102,7 @@ export default function TranslatePage() {
     targetLang, 
     setTargetLang, 
     translated, 
+    error,
     loading, 
     onChangeText,
     swapLanguages 
@@ -380,6 +381,19 @@ export default function TranslatePage() {
           </div>
         </div>
       </section>
+
+      {error && (
+        <div style={{
+          padding: "12px 16px",
+          borderRadius: 12,
+          border: "1px solid #fecaca",
+          backgroundColor: "#fef2f2",
+          color: "#b91c1c",
+          fontSize: 14
+        }}>
+          {error}
+        </div>
+      )}
 
       {/* Common Phrases Section */}
       <section>
